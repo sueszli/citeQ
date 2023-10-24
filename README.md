@@ -19,7 +19,7 @@ git clone https://github.com/sueszli/citeQ.git
 cd ???
 
 # install dependencies
-if command -v python3 &>/dev/null; then echo "Python 3 is installed."; else echo "Python 3 is not installed."; fi
+if command -v python3 &>/dev/null; then echo "found python3 install"; else echo "please install python3 first"; fi
 python3 -m pip install --upgrade pip > /dev/null
 pip3 install pipreqs > /dev/null && rm -rf requirements.txt > /dev/null && pipreqs . > /dev/null
 pip3 install -r requirements.txt > /dev/null
