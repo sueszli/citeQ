@@ -11,7 +11,7 @@ a8"     ""  88    88    a8P_____88  88          88
 
 <br>
 
-how to run:
+installation:
 
 ```bash
 # clone
