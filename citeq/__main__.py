@@ -76,6 +76,9 @@ if __name__ == "__main__":
         LOG.info(f"fetched papers: {len(results)}/{total}")
     assert len(results) > 0
 
-    for work in results:
-        ids = work["ids"]
-        LOG.info(f"\t{work['title']}")
+    citations = []
+    for paper in results:
+        ids = paper["ids"]
+        cited_by_count = paper["cited_by_count"]
+        cited_by_api_url = paper["cited_by_api_url"]
+        LOG.info(f"paper: {ids} with {cited_by_count} citations: {cited_by_api_url}")
