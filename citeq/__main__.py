@@ -44,21 +44,11 @@ if __name__ == "__main__":
 
         # name match
         name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
-        alias_disp_score = fuzz.partial_token_sort_ratio(args.alias, display_name)
-        result["name_disp_score"] = name_disp_score
-        result["alias_disp_score"] = alias_disp_score
-        LOG.info(f"\tname vs. display name: {name_disp_score}")
-        LOG.info(f"\talias vs. display name: {alias_disp_score}")
+        alias_disp_score = 0 if args.alias is None else fuzz.partial_token_sort_ratio(args.alias, display_name)
 
         # hint: institution
-        inst_score = fuzz.partial_token_sort_ratio(args.institution, institution) if args.institution is not None else 0
-        result["inst_score"] = inst_score
-        LOG.info(f"\tinstitution: {inst_score}")
+        inst_score = 0 if args.institution is None else fuzz.partial_token_sort_ratio(args.institution, institution)
 
         # hint: alternative names
-        avg_name_altnames_score = sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
-        avg_alias_altnames_score = sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
-        result["avg_name_altnames_score"] = avg_name_altnames_score
-        result["avg_alias_altnames_score"] = avg_alias_altnames_score
-        LOG.info(f"\tname vs. alternative names: {avg_name_altnames_score}")
-        LOG.info(f"\talias vs. alternative names: {avg_alias_altnames_score}")
+        avg_name_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
+        avg_alias_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
