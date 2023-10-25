@@ -50,7 +50,7 @@ if __name__ == "__main__":
         LOG.info(f"\talias vs. display name: {alias_disp_score}")
 
         # hint: institution
-        if args.instition is not None:
+        if args.institution is not None:
             inst_score = fuzz.partial_token_sort_ratio(args.institution, institution) if args.institution is not None else 0
             LOG.info(f"\tinstitution: {inst_score}")
 
