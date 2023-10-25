@@ -40,10 +40,11 @@ if __name__ == "__main__":
 
         # hint
         display_name_alternatives = result["display_name_alternatives"]
+        LOG.info(f"\taliases:{display_name_alternatives}")
 
         # hint
-        last_known_institution = result["last_known_institution"]  # very valuable
+        last_known_institution = result["last_known_institution"]
+        LOG.info(f"\tlast known institution:{last_known_institution}")
 
         # add to stack if matches
         works_api_url = result["works_api_url"]  # list of all papers
-        LOG.info(f"\t see:{works_api_url}")
