@@ -30,5 +30,5 @@ pip3 install -r requirements.txt > /dev/null
 python3 citeq --help
 
 # example usage
-python3 citeq ???
+python3 citeq jimmy lin
 ```

@@ -1,5 +1,5 @@
 {
     "python.formatting.provider": "black",
-    "liveServer.settings.port": 5501,
+    "editor.formatOnSave": true,
     "python.analysis.typeCheckingMode": "basic",
 }
