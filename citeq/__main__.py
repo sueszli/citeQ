@@ -14,32 +14,27 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-if __name__ == "__main__":
-    args: argparse.Namespace = get_args()
-    LOG.info(f"user arguments: {args}")
-
+def get_works(args: argparse.Namespace) -> str:
     # query author
     # see: https://docs.openalex.org/api-entities/authors/author-object
-    oa_query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower()
-    oa_response: dict = requests.get(oa_query).json()
-    oa_response_prettified = json.dumps(oa_response, indent=2)
 
-    oa_meta = oa_response["meta"]
-    total_count = oa_meta["count"]
-    assert total_count > 0, f"no results found for {args.name}"
+    results = []
+    query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "&cursor="
+    cursor = "*"
+    while cursor is not None:
+        response = requests.get(query + cursor).json()
+        results.extend(response["results"])
+        cursor = response["meta"]["next_cursor"]
+    assert len(results) > 0, f"no results found for {args.name}"
 
-    oa_results = oa_response["results"]
-    oa_filtered_results = [result for result in oa_results if result["works_count"] > 0 and result["cited_by_count"] > 0]
-    filtered_count = len(oa_filtered_results)
-    assert filtered_count > 0, f"no results with at least one work or citation"
-    LOG.info(f"found {total_count} results, {filtered_count} of which have at least one work and citation")
+    filtered_results = [result for result in results if result["works_count"] > 0 and result["cited_by_count"] > 0]
+    assert len(filtered_results) > 0, f"no results with at least one work or citation"
+    LOG.info(f"found {len(results)} results, {len(filtered_results)} of which have at least one work and citation")
 
-    for result in oa_filtered_results:
+    for result in filtered_results:
         display_name = result["display_name"]
         institution = result["last_known_institution"]["display_name"]
         altnames = result["display_name_alternatives"]
-        ids = result["ids"]
-        works = result["works_api_url"]
 
         # name match
         name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
@@ -56,11 +51,27 @@ if __name__ == "__main__":
         result["total_score"] = total_score
         LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
-    best_match = max(oa_filtered_results, key=lambda result: result["total_score"])
+    # get best match
+    best_match = max(filtered_results, key=lambda result: result["total_score"])
     LOG.info(f"best match: '{best_match['display_name']}' with {best_match['total_score']} points")
 
-    # get best match's works
     match_ids = best_match["ids"]
     match_works = best_match["works_api_url"]
-    LOG.info(f"best match's ids: {match_ids}")
+    return match_works
+
+
+if __name__ == "__main__":
+    args: argparse.Namespace = get_args()
+    LOG.info(f"user arguments: {args}")
+
+    match_works = get_works(args)
     LOG.info(f"best match's works: {match_works}")
+
+    response = requests.get(match_works).json()
+    meta = response["meta"]
+    LOG.info(f"found {meta['count']} works")
+
+    results = response["results"]
+    for work in results:
+        ids = work["ids"]
+        LOG.info(f"\t{work['title']}")

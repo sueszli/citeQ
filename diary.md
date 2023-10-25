@@ -2,8 +2,8 @@ _user flow_:
 
 0. enter researcher's name (and some hints)
 1. get researcher's papers (that have open access)
-2. get paper's citations
-3. classify type of citations: criticism, comparison, use, substantiation, basis, neutral (other)
+2. get other papers that cite the researchers papers
+3. classify citations: criticism, comparison, use, substantiation, basis, neutral (other)
 
 <br>
 
@@ -25,7 +25,7 @@ _searching the researcher's name_:
 
 2.  openalex: https://docs.openalex.org/
 
-    has one great wrapper:
+    has one wrapper that always returns fewer results than the website:
 
     -   https://github.com/J535D165/pyalex (⭐️ 58)
 
