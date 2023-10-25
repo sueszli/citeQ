@@ -40,7 +40,6 @@ if __name__ == "__main__":
         altnames = result["display_name_alternatives"]
         ids = result["ids"]
         works = result["works_api_url"]
-        LOG.info(f"found '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
         # name match
         name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
@@ -52,3 +51,16 @@ if __name__ == "__main__":
         # hint: alternative names
         avg_name_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
         avg_alias_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
+
+        total_score = name_disp_score + alias_disp_score + inst_score + avg_name_altnames_score + avg_alias_altnames_score
+        result["total_score"] = total_score
+        LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}' {('from ' + institution) if institution is not None else ''}")
+
+    best_match = max(oa_filtered_results, key=lambda result: result["total_score"])
+    LOG.info(f"best match: '{best_match['display_name']}' with {best_match['total_score']} points")
+
+    # get best match's works
+    match_ids = best_match["ids"]
+    match_works = best_match["works_api_url"]
+    LOG.info(f"best match's ids: {match_ids}")
+    LOG.info(f"best match's works: {match_works}")
