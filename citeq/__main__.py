@@ -4,47 +4,44 @@ from logger import LOG_SINGLETON as LOG, trace
 import requests
 
 
-if __name__ == "__main__":
+def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CiteQ: a citation analysis tool")
-    parser.add_argument("name", nargs="+", help="the researchers name", type=str)
-    parser.add_argument("university", nargs="?", help="the researchers university", type=str)
-    parser.add_argument("field", nargs="?", help="the researchers field of study", type=str)
+    parser.add_argument("name", nargs="+", help="the researcher's name", type=str)
+    parser.add_argument("-a", "--alias", nargs="+", help="the researcher's alternative names", type=str)
+    parser.add_argument("-i", "--institution", nargs="+", help="the researcher's last known institution", type=str)
+    return parser.parse_args()
 
-    args = parser.parse_args()
+
+if __name__ == "__main__":
+    args: argparse.Namespace = get_args()
 
     # query author
     # see: https://docs.openalex.org/api-entities/authors/author-object
     oa_query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower()
-    oa_response = requests.get(oa_query).json()
-    oa_response_pre = json.dumps(oa_response, indent=2)
+    oa_response: dict = requests.get(oa_query).json()
+    oa_response_prettified = json.dumps(oa_response, indent=2)
 
     oa_meta = oa_response["meta"]
     total = oa_meta["count"]
     assert total > 0, f"no results found for {args.name}"
-    LOG.info(f"found {total} results in openalex")
+    LOG.info(f"found {total} results in total")
 
     oa_results = oa_response["results"]
-    for result in oa_results:
+    oa_filtered_results = [result for result in oa_results if result["works_count"] > 0 and result["cited_by_count"] > 0]
+    LOG.info(f"{total} of which have at least one work or citation")
+
+    for result in oa_filtered_results:
         ids = result["ids"]
-        id = result["id"]
-        orcid = result["orcid"]
         display_name = result["display_name"]
         LOG.info(f"found {display_name}:")
 
-        # must have papers and citations
-        works_count = result["works_count"]
-        cited_by_count = result["cited_by_count"]
-        if works_count == 0 or cited_by_count == 0:
-            LOG.info(f"\tskipping due to 0 works or citations")
-            continue
+        # hint
+        institution = result["last_known_institution"]["display_name"]
+        LOG.info(f"\tinstitution: {institution}")
 
         # hint
-        display_name_alternatives = result["display_name_alternatives"]
-        LOG.info(f"\taliases:{display_name_alternatives}")
+        aliases = result["display_name_alternatives"]
+        LOG.info(f"\taliases:{aliases}")
 
-        # hint
-        last_known_institution = result["last_known_institution"]
-        LOG.info(f"\tlast known institution:{last_known_institution}")
-
-        # add to stack if matches
-        works_api_url = result["works_api_url"]  # list of all papers
+        # add list of papers to stack if matches
+        works = result["works_api_url"]
