@@ -47,8 +47,8 @@ if __name__ == "__main__":
         alias_disp_score = fuzz.partial_token_sort_ratio(args.alias, display_name)
         result["name_disp_score"] = name_disp_score
         result["alias_disp_score"] = alias_disp_score
-        LOG.info(f"\tavg name vs. display name: {name_disp_score}")
-        LOG.info(f"\tavg alias vs. display name: {alias_disp_score}")
+        LOG.info(f"\tname vs. display name: {name_disp_score}")
+        LOG.info(f"\talias vs. display name: {alias_disp_score}")
 
         # hint: institution
         inst_score = fuzz.partial_token_sort_ratio(args.institution, institution) if args.institution is not None else 0
