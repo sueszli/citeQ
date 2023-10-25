@@ -19,7 +19,7 @@ def get_works(args: argparse.Namespace) -> str:
     # see: https://docs.openalex.org/api-entities/authors/author-object
 
     results = []
-    query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "&cursor="
+    query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "?&per-page=200&cursor="
     cursor = "*"
     while cursor is not None:
         response = requests.get(query + cursor).json()
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     args: argparse.Namespace = get_args()
     LOG.info(f"user arguments: {args}")
 
-    query = get_works(args) + "&cursor="
+    query = get_works(args) + "?&per-page=200&cursor="
     total = requests.get(query).json()["meta"]["count"]
 
     results = []
@@ -76,9 +76,13 @@ if __name__ == "__main__":
         LOG.info(f"fetched papers: {len(results)}/{total}")
     assert len(results) > 0
 
+    filtered_results = [result for result in results if result["cited_by_count"] > 0]
+    LOG.info(f"found {len(results)} results, {len(filtered_results)} of which have at least one citation")
+
     citations = []
-    for paper in results:
-        ids = paper["ids"]
-        cited_by_count = paper["cited_by_count"]
-        cited_by_api_url = paper["cited_by_api_url"]
-        LOG.info(f"paper: {ids} with {cited_by_count} citations: {cited_by_api_url}")
+    total_num_citations = 0
+    for paper in filtered_results:
+        cite_count = paper["cited_by_count"]
+        cite_urls = paper["cited_by_api_url"]
+        citations.extend(cite_urls)
+        total_num_citations += cite_count
