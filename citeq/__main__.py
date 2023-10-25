@@ -64,14 +64,15 @@ if __name__ == "__main__":
     args: argparse.Namespace = get_args()
     LOG.info(f"user arguments: {args}")
 
-    match_works = get_works(args)
-    LOG.info(f"best match's works: {match_works}")
+    results = []
+    query = get_works(args) + "&cursor="
+    cursor = "*"
+    while cursor is not None:
+        response = requests.get(query + cursor).json()
+        results.extend(response["results"])
+        cursor = response["meta"]["next_cursor"]
+    assert len(results) > 0
 
-    response = requests.get(match_works).json()
-    meta = response["meta"]
-    LOG.info(f"found {meta['count']} works")
-
-    results = response["results"]
     for work in results:
         ids = work["ids"]
         LOG.info(f"\t{work['title']}")
