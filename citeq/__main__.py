@@ -14,7 +14,7 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_works(args: argparse.Namespace) -> str:
+def get_papers(args: argparse.Namespace):
     # query author
     # see: https://docs.openalex.org/api-entities/authors/author-object
 
@@ -55,34 +55,50 @@ def get_works(args: argparse.Namespace) -> str:
     best_match = max(filtered_results, key=lambda result: result["total_score"])
     LOG.info(f"best match: '{best_match['display_name']}' with {best_match['total_score']} points")
 
-    match_ids = best_match["ids"]
+    # get all papers of best match
+    LOG.info(f"fetching papers of best match")
     match_works = best_match["works_api_url"]
-    return match_works
-
-
-if __name__ == "__main__":
-    args: argparse.Namespace = get_args()
-    LOG.info(f"user arguments: {args}")
-
-    query = get_works(args) + "?&per-page=200&cursor="
+    query = match_works + "?&per-page=200&cursor="
     total = requests.get(query).json()["meta"]["count"]
-
     results = []
     cursor = "*"
     while cursor is not None:
         response = requests.get(query + cursor).json()
         results.extend(response["results"])
         cursor = response["meta"]["next_cursor"]
-        LOG.info(f"fetched papers: {len(results)}/{total}")
+        LOG.info(f"\tfetched papers: {len(results)}/{total}")
     assert len(results) > 0
+    return results
 
-    filtered_results = [result for result in results if result["cited_by_count"] > 0]
-    LOG.info(f"found {len(results)} results, {len(filtered_results)} of which have at least one citation")
 
-    citations = []
-    total_num_citations = 0
-    for paper in filtered_results:
-        cite_count = paper["cited_by_count"]
-        cite_urls = paper["cited_by_api_url"]
-        citations.extend(cite_urls)
-        total_num_citations += cite_count
+if __name__ == "__main__":
+    args: argparse.Namespace = get_args()
+    LOG.info(f"user arguments: {args}")
+
+    papers = get_papers(args)
+    filtered_papers = [paper for paper in papers if paper["cited_by_count"] > 0]
+    LOG.info(f"found {len(papers)} papers, {len(filtered_papers)} of which have at least one citation")
+
+    # citing papers: other papers that cite this paper
+    # see: https://docs.openalex.org/api-entities/works/work-object#cited_by_api_url
+    citing_papers_url = [paper["cited_by_api_url"] for paper in filtered_papers]
+    citing_papers = []
+    c = 0
+    for query in citing_papers_url:
+        LOG.info(f"fetching citations of paper {c}/{len(citing_papers_url)}")
+        sub_query = query + "?&per-page=200&cursor="
+        total = requests.get(sub_query).json()["meta"]["count"]
+        results = []
+        cursor = "*"
+        while cursor is not None:
+            response = requests.get(sub_query + cursor).json()
+            results.extend(response["results"])
+            cursor = response["meta"]["next_cursor"]
+            LOG.debug(f"\tfetched citing papers: {len(results)}/{total}")
+        c += 1
+
+    # next steps:
+    # 1. filter out all citing papers that are paywalled (https://docs.openalex.org/api-entities/works/work-object#oa_url)
+    # 2. download all citing papers (pdf / html)
+    # 3. use pdfminer to extract all citations from the citing papers
+    # 4. cluster the citations
