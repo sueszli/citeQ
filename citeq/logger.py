@@ -1,5 +1,4 @@
 import logging
-
 import traceback
 import functools
 from rich.logging import RichHandler

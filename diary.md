@@ -28,3 +28,10 @@ _searching the researcher's name_:
     has one great wrapper:
 
     -   https://github.com/J535D165/pyalex (⭐️ 58)
+
+<br>
+
+_fuzzy string matching_:
+
+-   fuzzywuzzy: https://github.com/seatgeek/fuzzywuzzy (⭐️ 9k) → has been moved to "thefuzz"
+-   thefuzz: https://github.com/seatgeek/thefuzz (⭐️ 2k)
