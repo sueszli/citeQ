@@ -16,7 +16,7 @@ def get_args() -> argparse.Namespace:
 
 if __name__ == "__main__":
     args: argparse.Namespace = get_args()
-    LOG.info(f"searching for '{' '.join(args.name)}'")
+    LOG.info(f"user arguments: {args}")
 
     # query author
     # see: https://docs.openalex.org/api-entities/authors/author-object
@@ -40,23 +40,25 @@ if __name__ == "__main__":
         altnames = result["display_name_alternatives"]
         ids = result["ids"]
         works = result["works_api_url"]
-
         LOG.info(f"found '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
         # name match
         name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
         alias_disp_score = fuzz.partial_token_sort_ratio(args.alias, display_name)
-        LOG.info(f"\tname vs. display name: {name_disp_score}")
-        LOG.info(f"\talias vs. display name: {alias_disp_score}")
+        result["name_disp_score"] = name_disp_score
+        result["alias_disp_score"] = alias_disp_score
+        LOG.info(f"\tavg name vs. display name: {name_disp_score}")
+        LOG.info(f"\tavg alias vs. display name: {alias_disp_score}")
 
         # hint: institution
-        if args.institution is not None:
-            inst_score = fuzz.partial_token_sort_ratio(args.institution, institution) if args.institution is not None else 0
-            LOG.info(f"\tinstitution: {inst_score}")
+        inst_score = fuzz.partial_token_sort_ratio(args.institution, institution) if args.institution is not None else 0
+        result["inst_score"] = inst_score
+        LOG.info(f"\tinstitution: {inst_score}")
 
         # hint: alternative names
-        if args.alias is not None:
-            avg_name_altnames_score = sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
-            avg_alias_altnames_score = sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
-            LOG.info(f"\tname vs. alternative names: {avg_name_altnames_score}")
-            LOG.info(f"\talias vs. alternative names: {avg_alias_altnames_score}")
+        avg_name_altnames_score = sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
+        avg_alias_altnames_score = sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
+        result["avg_name_altnames_score"] = avg_name_altnames_score
+        result["avg_alias_altnames_score"] = avg_alias_altnames_score
+        LOG.info(f"\tname vs. alternative names: {avg_name_altnames_score}")
+        LOG.info(f"\talias vs. alternative names: {avg_alias_altnames_score}")
