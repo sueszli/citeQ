@@ -64,13 +64,16 @@ if __name__ == "__main__":
     args: argparse.Namespace = get_args()
     LOG.info(f"user arguments: {args}")
 
-    results = []
     query = get_works(args) + "&cursor="
+    total = requests.get(query).json()["meta"]["count"]
+
+    results = []
     cursor = "*"
     while cursor is not None:
         response = requests.get(query + cursor).json()
         results.extend(response["results"])
         cursor = response["meta"]["next_cursor"]
+        LOG.info(f"fetched papers: {len(results)}/{total}")
     assert len(results) > 0
 
     for work in results:
