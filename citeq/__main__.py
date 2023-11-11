@@ -1,7 +1,9 @@
 from thefuzz import fuzz, process
+from typing import Tuple
 import requests
 import argparse
 import json
+import os
 
 from logger import LOG_SINGLETON as LOG, trace
 
@@ -14,9 +16,10 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_papers(args: argparse.Namespace):
+def get_researcher(args: argparse.Namespace) -> dict:
     # query author
     # see: https://docs.openalex.org/api-entities/authors/author-object
+    # to understand cursor, see: https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/paging#cursor-paging
 
     results = []
     query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "?&per-page=200&cursor="
@@ -29,7 +32,7 @@ def get_papers(args: argparse.Namespace):
 
     filtered_results = [result for result in results if result["works_count"] > 0 and result["cited_by_count"] > 0]
     assert len(filtered_results) > 0, f"no results with at least one work or citation"
-    LOG.info(f"found {len(results)} results, {len(filtered_results)} of which have at least one work and citation")
+    LOG.info(f"found {len(results)} matching researchers, {len(filtered_results)} of which have at least one work and citation")
 
     for result in filtered_results:
         display_name = result["display_name"]
@@ -51,14 +54,16 @@ def get_papers(args: argparse.Namespace):
         result["total_score"] = total_score
         LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
-    # get best match
     best_match = max(filtered_results, key=lambda result: result["total_score"])
-    LOG.info(f"best match: '{best_match['display_name']}' with {best_match['total_score']} points")
+    LOG.info(f"\tbest matching researcher: '{best_match['display_name']}' with {best_match['total_score']} points")
+    return best_match
 
-    # get all papers of best match
-    LOG.info(f"fetching papers of best match")
-    match_works = best_match["works_api_url"]
+
+def get_papers(researcher_obj: dict) -> list:
+    LOG.info(f"fetching all papers of best match")
+    match_works = researcher_obj["works_api_url"]
     query = match_works + "?&per-page=200&cursor="
+
     total = requests.get(query).json()["meta"]["count"]
     results = []
     cursor = "*"
@@ -66,26 +71,56 @@ def get_papers(args: argparse.Namespace):
         response = requests.get(query + cursor).json()
         results.extend(response["results"])
         cursor = response["meta"]["next_cursor"]
-        LOG.info(f"\tfetched papers: {len(results)}/{total}")
+        LOG.info(f"\tprogress: {len(results)}/{total}")
     assert len(results) > 0
-    return results
+
+    cited_papers = [paper for paper in results if paper["cited_by_count"] > 0]
+    LOG.info(f"\tfound published {len(results)} papers, {len(cited_papers)} of which have at least one citation")
+    assert len(cited_papers) > 0
+
+    return cited_papers
 
 
-if __name__ == "__main__":
-    args: argparse.Namespace = get_args()
-    LOG.info(f"user arguments: {args}")
+def is_cached_get_path(researcher_obj: dict, filename: str) -> Tuple[bool, str]:
+    CACHE_DIR_NAME = ".cache"
 
-    papers = get_papers(args)
-    filtered_papers = [paper for paper in papers if paper["cited_by_count"] > 0]
-    LOG.info(f"found {len(papers)} papers, {len(filtered_papers)} of which have at least one citation")
+    name = researcher_obj["display_name"]
+    hash_str = str(hex(hash(name))[2:])  # TODO: error - gives you a new hash every time
 
-    # citing papers: other papers that cite this paper
+    # check if .cache exists – if not, create it
+    cache_dir = os.path.join(os.getcwd(), CACHE_DIR_NAME)
+    cache_dir_exists = os.path.isdir(cache_dir)
+    if not cache_dir_exists:
+        os.mkdir(cache_dir)
+
+    # check if ./cache/<hash_str> exists – if not, create it
+    researcher_cache_dir = os.path.join(cache_dir, hash_str)
+    researcher_cache_dir_exists = os.path.isdir(researcher_cache_dir)
+    if not researcher_cache_dir_exists:
+        os.mkdir(researcher_cache_dir)
+        LOG.info(f"created cache directory for researcher at './{CACHE_DIR_NAME}/{hash_str}'")
+
+    # check if ./cache/<hash_str>/<filename> exists – get path to read/write at
+    filepath = os.path.join(researcher_cache_dir, filename)
+    is_cached = os.path.isfile(filepath)
+    return is_cached, filepath
+
+
+def get_citing_papers(researcher_obj: dict, papers: list) -> list:
+    LOG.info(f"fetching all citing papers (papers that cite the researcher's papers)")
+
+    is_cached, filepath = is_cached_get_path(researcher_obj, "cited-papers.json")
+    if is_cached:
+        LOG.info(f"found cached citing papers at '{filepath}'")
+        return json.load(open(filepath, "r"))
+
+    # get citing papers
     # see: https://docs.openalex.org/api-entities/works/work-object#cited_by_api_url
-    citing_papers_url = [paper["cited_by_api_url"] for paper in filtered_papers]
+    citing_papers_url = [paper["cited_by_api_url"] for paper in papers]
     citing_papers = []
     c = 0
     for query in citing_papers_url:
-        LOG.info(f"fetching citations of paper {c}/{len(citing_papers_url)}")
+        LOG.info(f"\tprogress: {c}/{len(citing_papers_url)}")
         sub_query = query + "?&per-page=200&cursor="
         total = requests.get(sub_query).json()["meta"]["count"]
         results = []
@@ -97,8 +132,26 @@ if __name__ == "__main__":
             LOG.debug(f"\tfetched citing papers: {len(results)}/{total}")
         c += 1
 
+    # filter out paywalled papers
+    # see: https://docs.openalex.org/api-entities/works/work-object#oa_url
+
+    # dump citing and non paywalled papers to json
+
+    # return
+    return []
+
+
+if __name__ == "__main__":
+    args: argparse.Namespace = get_args()
+    LOG.info(f"user arguments: {args}")
+
+    researcher_obj = get_researcher(args)
+
+    papers = get_papers(researcher_obj)
+
+    citing_papers = get_citing_papers(researcher_obj, papers)
+
     # next steps:
-    # 1. filter out all citing papers that are paywalled (https://docs.openalex.org/api-entities/works/work-object#oa_url)
-    # 2. download all citing papers (pdf / html)
-    # 3. use pdfminer to extract all citations from the citing papers
-    # 4. cluster the citations
+    # - download all citing papers (pdf / html)
+    # - use pdfminer to extract all citations from the citing papers
+    # - cluster the citations with ollama docker image
