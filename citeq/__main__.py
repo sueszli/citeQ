@@ -83,7 +83,9 @@ def is_cached_get_path(researcher_obj: dict, filename: str) -> Tuple[bool, str]:
 
     # check if ./cache/<hash_str>/<filename> exists – get path to read/write at
     filepath = os.path.join(researcher_cache_dir, filename)
-    is_cached = os.path.isfile(filepath)
+    file_cache_exists = os.path.isfile(filepath)
+    dir_cache_exists = os.path.isdir(filepath)
+    is_cached = file_cache_exists or dir_cache_exists
     return is_cached, filepath
 
 
