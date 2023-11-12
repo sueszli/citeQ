@@ -6,6 +6,7 @@ import json
 import os
 import hashlib
 import asyncio
+from PyPDF2 import PdfReader
 
 
 from logger import LOG_SINGLETON as LOG, trace
@@ -167,11 +168,14 @@ class PdfCrawler:
     @staticmethod
     @background
     def download(url: str, filepath: str):
-        response = requests.get(url)
-        with open(filepath, "wb") as f:
-            f.write(response.content)
-        PdfCrawler.COUNTER += 1
-        LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
+        try:
+            response = requests.get(url, timeout=10)  # timeout in seconds
+            with open(filepath, "wb") as f:
+                f.write(response.content)
+            PdfCrawler.COUNTER += 1
+            LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
+        except requests.exceptions.Timeout:
+            LOG.critical(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - timed out")
 
     @staticmethod
     def download_pdfs(cache_key, citing_paper_urls: list):
@@ -197,6 +201,43 @@ class PdfCrawler:
             PdfCrawler.download(url, filepath)
 
 
+class PdfParser:
+    CACHE_DIR_NAME = "txts"
+
+    @staticmethod
+    def convert_pdf_to_txt(cache_key):
+        pdf_dir_exists, pdf_dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
+        assert pdf_dir_exists, f"no pdfs found in cache"
+
+        txt_dir_exists, txt_dir_path = is_cached_get_path(cache_key, PdfParser.CACHE_DIR_NAME)
+        if not txt_dir_exists:
+            os.mkdir(txt_dir_path)
+            LOG.info(f"created directory for txts in cache")
+
+        pdf_paths = [os.path.join(pdf_dir_path, filename) for filename in os.listdir(pdf_dir_path)]
+        for i, pdf in enumerate(pdf_paths):
+            LOG.info(f"\tprogress: {i}/{len(pdf_paths)}")
+
+            txt_name = os.path.basename(pdf).replace(".pdf", ".txt")
+            txt_path = os.path.join(txt_dir_path, txt_name)
+
+            is_cached = os.path.isfile(txt_path)
+            if is_cached:
+                LOG.info(f"\tprogress: {i}/{len(pdf_paths)} - found in cache")
+                continue
+
+            try:
+                reader = PdfReader(pdf)
+                for i in range(len(reader.pages)):
+                    text = reader.pages[i].extract_text()
+                    if text is None:
+                        continue
+                    with open(txt_path, "a") as f:
+                        f.write(text)
+            except Exception as e:
+                LOG.critical(f"\tprogress: {i}/{len(pdf_paths)} - error: {e}")
+
+
 if __name__ == "__main__":
     args = get_args()
 
@@ -208,6 +249,6 @@ if __name__ == "__main__":
 
     PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
 
-    # next steps:
-    # - extract citations from pdfs: https://pypi.org/project/pdfminer/
-    # - cluster the citations with ollama docker image
+    # PdfParser.convert_pdf_to_txt(cache_key)
+
+    # next step: feeding everything into the ollama docker image
