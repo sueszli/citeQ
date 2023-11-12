@@ -5,6 +5,8 @@ import argparse
 import json
 import os
 import hashlib
+import asyncio
+
 
 from logger import LOG_SINGLETON as LOG, trace
 
@@ -151,7 +153,48 @@ class OpenAlexClient:
 
 
 class PdfCrawler:
-    pass
+    CACHE_DIR_NAME = "pdfs"
+    COUNTER = 0
+    TOTAL = 0
+
+    @staticmethod
+    def background(f):
+        def wrapped(*args, **kwargs):
+            return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
+
+        return wrapped
+
+    @staticmethod
+    @background
+    def download(url: str, filepath: str):
+        response = requests.get(url)
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+        PdfCrawler.COUNTER += 1
+        LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
+
+    @staticmethod
+    def download_pdfs(cache_key, citing_paper_urls: list):
+        dir_exists, dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
+        if not dir_exists:
+            os.mkdir(dir_path)
+            LOG.info(f"created directory for pdfs in cache")
+
+        LOG.info(f"concurrently downloading {len(citing_paper_urls)} pdfs")
+        PdfCrawler.TOTAL = len(citing_paper_urls)
+
+        for url in citing_paper_urls:
+            filename_len = 10
+            filename = hashlib.sha256(url.encode()).hexdigest().lower()[0:filename_len] + ".pdf"
+            filepath = os.path.join(dir_path, filename)
+
+            is_cached = os.path.isfile(filepath)
+            if is_cached:
+                PdfCrawler.COUNTER += 1
+                LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - found in cache")
+                continue
+
+            PdfCrawler.download(url, filepath)
 
 
 if __name__ == "__main__":
@@ -161,9 +204,10 @@ if __name__ == "__main__":
     cache_key = hashlib.sha256(researcher_obj["display_name"].encode()).hexdigest().lower()[0:24]
 
     paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
-    citing_papers = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
+    citing_paper_urls = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
+
+    PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
 
     # next steps:
-    # - download pdfs from all links: https://stackoverflow.com/a/57689101/13045051
     # - extract citations from pdfs: https://pypi.org/project/pdfminer/
     # - cluster the citations with ollama docker image
