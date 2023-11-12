@@ -249,6 +249,6 @@ if __name__ == "__main__":
 
     PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
 
-    # PdfParser.convert_pdf_to_txt(cache_key)
+    PdfParser.convert_pdf_to_txt(cache_key)
 
-    # next step: feeding everything into the ollama docker image
+    # next step: feeding everything into ollama (docker image)
