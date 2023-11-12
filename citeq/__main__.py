@@ -60,29 +60,9 @@ def get_researcher_obj(args: argparse.Namespace) -> dict:
     return best_match
 
 
-def get_paper_urls(researcher_obj: dict) -> list:
-    LOG.info(f"fetching all papers of researcher")
-    match_works = researcher_obj["works_api_url"]
-    query = match_works + "?&per-page=200&cursor="
-
-    total = requests.get(query).json()["meta"]["count"]
-    results = []
-    cursor = "*"
-    while cursor is not None:
-        response = requests.get(query + cursor).json()
-        results.extend(response["results"])
-        cursor = response["meta"]["next_cursor"]
-        LOG.info(f"\tprogress: {len(results)}/{total}")
-    assert len(results) > 0
-
-    cited_papers = [paper for paper in results if paper["cited_by_count"] > 0]
-    LOG.info(f"\tfound published {len(results)} papers, {len(cited_papers)} of which have at least one citation")
-    assert len(cited_papers) > 0
-
-    return cited_papers
-
-
 def is_cached_get_path(researcher_obj: dict, filename: str) -> Tuple[bool, str]:
+    # TODO: input can also be a directory name
+
     CACHE_DIR_NAME = ".cache"
 
     name = researcher_obj["display_name"]
@@ -107,8 +87,40 @@ def is_cached_get_path(researcher_obj: dict, filename: str) -> Tuple[bool, str]:
     return is_cached, filepath
 
 
+def get_paper_urls(researcher_obj: dict) -> list:
+    LOG.info(f"fetching all papers of researcher")
+
+    filename = "paper-urls.json"
+    is_cached, filepath = is_cached_get_path(researcher_obj, filename)
+    if is_cached:
+        LOG.info(f"found paper urls in cache: '{filepath}'")
+        return json.load(open(filepath, "r"))
+
+    match_works = researcher_obj["works_api_url"]
+    query = match_works + "?&per-page=200&cursor="
+
+    total = requests.get(query).json()["meta"]["count"]
+    results = []
+    cursor = "*"
+    while cursor is not None:
+        response = requests.get(query + cursor).json()
+        results.extend(response["results"])
+        cursor = response["meta"]["next_cursor"]
+        LOG.info(f"\tprogress: {len(results)}/{total}")
+    assert len(results) > 0
+
+    cited_papers = [paper for paper in results if paper["cited_by_count"] > 0]
+    LOG.info(f"\tfound published {len(results)} papers, {len(cited_papers)} of which have at least one citation")
+    assert len(cited_papers) > 0
+
+    # cache results
+    json.dump(cited_papers, open(filepath, "w"))
+    LOG.info(f"{len(cited_papers)} paper urls cached at '{filepath}'")
+    return cited_papers
+
+
 def get_citing_paper_pdf_urls(researcher_obj: dict, paper_urls: list) -> list:
-    LOG.info(f"fetching all citing papers (papers that cite the researcher's papers)")
+    LOG.info(f"fetching urls for papers that cite the researcher's papers (citing papers):")
 
     filename = "cited-paper-urls.json"
     is_cached, filepath = is_cached_get_path(researcher_obj, filename)
@@ -123,7 +135,6 @@ def get_citing_paper_pdf_urls(researcher_obj: dict, paper_urls: list) -> list:
     queries = [paper["cited_by_api_url"] for paper in paper_urls]
     for i, query in enumerate(queries):
         sub_query = query + "?&per-page=200&cursor="
-        num_citations = requests.get(sub_query).json()["meta"]["count"]
         LOG.info(f"\tprogress: {i}/{len(paper_urls)}")
 
         cursor = "*"
@@ -131,23 +142,23 @@ def get_citing_paper_pdf_urls(researcher_obj: dict, paper_urls: list) -> list:
             response = requests.get(sub_query + cursor).json()
             cursor = response["meta"]["next_cursor"]
             links = [r["open_access"]["oa_url"] for r in response["results"] if r["open_access"]["oa_url"] is not None]
-            output.append(links)
+            for link in links:
+                output.append(link)
 
     # cache results
     json.dump(output, open(filepath, "w"))
-    LOG.info(f"{len(output)} of {len(paper_urls)} papers have a url to download from (open access url) - cached at '{filepath}'")
+    LOG.info(f"{len(output)} pdf urls to citing papers cached at '{filepath}'")
     return output
 
 
 if __name__ == "__main__":
-    args: argparse.Namespace = get_args()
-    LOG.info(f"user arguments: {args}")
+    args = get_args()
 
     researcher_obj = get_researcher_obj(args)
     paper_urls = get_paper_urls(researcher_obj)
     citing_papers = get_citing_paper_pdf_urls(researcher_obj, paper_urls)
 
-    # next steps:
-    # - download from all links
-    # - use pdfminer to extract all citations from the citing papers
+    # next steps (seperate classes)
+    # - download pdfs from all links (https://stackoverflow.com/a/57689101/13045051)
+    # - extract citations from pdfs (https://pypi.org/project/pdfminer/)
     # - cluster the citations with ollama docker image
