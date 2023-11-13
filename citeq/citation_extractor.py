@@ -1,5 +1,6 @@
 from unstructured.partition.pdf import partition_pdf
 from nltk.tokenize import sent_tokenize
+import re
 
 
 class CitationExtractor:
