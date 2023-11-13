@@ -4,13 +4,12 @@ import re
 
 
 class CitationExtractor:
-    def __init__(self):
-        pass
-
-    def read_file(self, file_path):
+    @staticmethod
+    def read_file(file_path):
         return partition_pdf(file_path, url=None)
 
-    def find_bibliography(self, file):
+    @staticmethod
+    def find_bibliography(file):
         # find the bibliography section
         for i, element in enumerate(file):
             if element.category == "Title":
@@ -23,8 +22,9 @@ class CitationExtractor:
 
         raise Exception("No bibliography found")
 
-    def extract_references(self, file):
-        bib_start = self.find_bibliography(file)
+    @staticmethod
+    def extract_references(file):
+        bib_start = CitationExtractor.find_bibliography(file)
 
         # extract the references
         references = {}
@@ -68,9 +68,10 @@ class CitationExtractor:
 
         return references
 
-    def extract_citations(self, file):
-        references = self.extract_references(file)
-        bib_start = self.find_bibliography(file)
+    @staticmethod
+    def extract_citations(file):
+        references = CitationExtractor.extract_references(file)
+        bib_start = CitationExtractor.find_bibliography(file)
 
         # extract the citations
         citations = []
