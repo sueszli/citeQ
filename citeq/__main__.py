@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import hashlib
+import atomics
 import asyncio
 from PyPDF2 import PdfReader
 
@@ -155,7 +156,7 @@ class OpenAlexClient:
 
 class PdfCrawler:
     CACHE_DIR_NAME = "pdfs"
-    COUNTER = 0
+    COUNTER = atomics.atomic(width=4, atype=atomics.INT)
     TOTAL = 0
 
     @staticmethod
@@ -172,7 +173,7 @@ class PdfCrawler:
             response = requests.get(url, timeout=10)  # timeout in seconds
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            PdfCrawler.COUNTER += 1
+            PdfCrawler.COUNTER.fetch_inc()
             LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
         except requests.exceptions.Timeout:
             LOG.critical(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - timed out")
@@ -194,8 +195,8 @@ class PdfCrawler:
 
             is_cached = os.path.isfile(filepath)
             if is_cached:
-                PdfCrawler.COUNTER += 1
-                LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - found in cache")
+                PdfCrawler.COUNTER.fetch_inc()
+                LOG.info(f"\tprogress: {PdfCrawler.COUNTER.load()}/{PdfCrawler.TOTAL} - found in cache")
                 continue
 
             PdfCrawler.download(url, filepath)
@@ -240,7 +241,7 @@ class PdfParser:
 
 class Classifier:
     def __init__(self):
-        # Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text
+        # "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
         pass
 
 if __name__ == "__main__":
