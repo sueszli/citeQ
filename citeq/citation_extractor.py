@@ -3,7 +3,7 @@ from nltk.tokenize import sent_tokenize
 import re
 
 
-class CitationExtractor:
+class RegexCitationExtractor:
     @staticmethod
     def read_file(file_path):
         return partition_pdf(file_path, url=None)
@@ -24,7 +24,7 @@ class CitationExtractor:
 
     @staticmethod
     def extract_references(file):
-        bib_start = CitationExtractor.find_bibliography(file)
+        bib_start = RegexCitationExtractor.find_bibliography(file)
 
         # extract the references
         references = {}
@@ -70,8 +70,8 @@ class CitationExtractor:
 
     @staticmethod
     def extract_citations(file):
-        references = CitationExtractor.extract_references(file)
-        bib_start = CitationExtractor.find_bibliography(file)
+        references = RegexCitationExtractor.extract_references(file)
+        bib_start = RegexCitationExtractor.find_bibliography(file)
 
         # extract the citations
         citations = []

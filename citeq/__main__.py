@@ -238,6 +238,11 @@ class PdfParser:
                 LOG.critical(f"\tprogress: {i}/{len(pdf_paths)} - error: {e}")
 
 
+class Classifier:
+    def __init__(self):
+        # Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text
+        pass
+
 if __name__ == "__main__":
     args = get_args()
 
