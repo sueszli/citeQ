@@ -311,7 +311,6 @@ def main():
 
     # match with researcher in semantic scholar
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
-    url = ss_researcher_obj["url"]
 
     # optional: download all citing papers
     if args.download_pdfs:
@@ -320,7 +319,8 @@ def main():
         PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
         PdfCrawler.convert_pdf_to_txt(cache_key)
 
-    # get citations
+    # find citations on semantic scholar
+    url = ss_researcher_obj["url"]
 
 
 if __name__ == "__main__":
