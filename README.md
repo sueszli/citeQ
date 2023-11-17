@@ -8,7 +8,7 @@ a8"     ""  88    88    a8P_____88  88          88
 "8a,   ,aa  88    88,   "8b,   ,aa   Y8a.    Y88P
  `"Ybbd8"'  88    "Y888  `"Ybbd8"'    `"Y8888Y"Y8a
 
-citation sentiment classifier
+🎓 citation sentiment classifier
 ```
 
 ⚠️ work in progress ⚠️

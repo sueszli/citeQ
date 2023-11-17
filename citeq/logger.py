@@ -4,6 +4,20 @@ import functools
 from rich.logging import RichHandler
 import os
 
+BANNER_ASCII = """
+\u001b[32m
+            88                        ,ad8888ba,
+            ""    ,d                 d8"'    `"8b
+                  88                d8'        `8b
+ ,adPPYba,  88  MM88MMM  ,adPPYba,  88          88
+a8"     ""  88    88    a8P_____88  88          88
+8b          88    88    8PP\"\"\"\"\"\"\"  Y8,    "88,,8P
+"8a,   ,aa  88    88,   "8b,   ,aa   Y8a.    Y88P
+ `"Ybbd8"'  88    "Y888  `"Ybbd8"'    `"Y8888Y"Y8a
+
+🎓 citation sentiment classifier
+\u001b[0m
+"""
 HIGHLIGHTED_WORDS = [""]
 IGNORED_STACK_FRAMES = 8
 
@@ -24,6 +38,7 @@ class LogInitializer:
         logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[rich_handler])
 
         os.system("cls" if os.name == "nt" else "clear")
+        print(BANNER_ASCII)
         return LogWrapper(logging.getLogger("scrape-logger"), {})
 
 

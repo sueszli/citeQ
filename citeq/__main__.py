@@ -5,7 +5,6 @@ import argparse
 import json
 import os
 import hashlib
-import atomics
 import asyncio
 from PyPDF2 import PdfReader
 
@@ -18,7 +17,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("name", nargs="+", help="the researcher's name", type=str)
     parser.add_argument("-a", "--alias", nargs="+", help="the researcher's alternative names", type=str)
     parser.add_argument("-i", "--institution", nargs="+", help="the researcher's last known institution", type=str)
-    parser.add_argument("-d", "--download-pdfs", help="download all citation pdfs", action="store_false") 
+    parser.add_argument("-d", "--download-pdfs", help="download pdfs of papers that cite the researcher's papers", type=bool, default=False)
     return parser.parse_args()
 
 
@@ -92,7 +91,7 @@ class OpenAlexClient:
 
     @staticmethod
     def get_paper_urls(cache_key: str, researcher_obj: dict) -> list:
-        LOG.info(f"fetching all papers of researcher")
+        LOG.info(f"fetching all papers published by the researcher")
 
         filename = "paper-urls.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
@@ -104,17 +103,17 @@ class OpenAlexClient:
         query = match_works + "?&per-page=200&cursor="
 
         total = requests.get(query).json()["meta"]["count"]
-        results = []
+        papers = []
         cursor = "*"
         while cursor is not None:
             response = requests.get(query + cursor).json()
-            results.extend(response["results"])
+            papers.extend(response["papers"])
             cursor = response["meta"]["next_cursor"]
-            LOG.info(f"\tprogress: {len(results)}/{total}")
-        assert len(results) > 0
+            LOG.info(f"\tprogress: {len(papers)}/{total}")
+        assert len(papers) > 0
 
-        cited_papers = [paper for paper in results if paper["cited_by_count"] > 0]
-        LOG.info(f"\tfound published {len(results)} papers, {len(cited_papers)} of which have at least one citation")
+        cited_papers = [paper for paper in papers if paper["cited_by_count"] > 0]
+        LOG.info(f"\tfound published {len(papers)} papers, {len(cited_papers)} of which have at least one citation")
         assert len(cited_papers) > 0
 
         # cache results
@@ -123,16 +122,16 @@ class OpenAlexClient:
         return cited_papers
 
     @staticmethod
-    def get_citing_paper_pdf_urls(cache_key: str, paper_urls: list) -> list:
-        LOG.info(f"fetching urls for papers that cite the researcher's papers (citing papers):")
+    def get_citing_paper_objs(cache_key: str, paper_urls: list) -> list:
+        LOG.info(f"fetching all papers citing the papers published by the researcher")
 
-        filename = "cited-paper-urls.json"
+        filename = "citing-papers.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
             LOG.info(f"found cited paper urls in cache: '{filepath}'")
             return json.load(open(filepath, "r"))
 
-        # get citing papers, for each paper
+        # for each paper, get citing papers
         # see: https://docs.openalex.org/api-entities/works/work-object#cited_by_api_url
         output = []
 
@@ -143,11 +142,9 @@ class OpenAlexClient:
 
             cursor = "*"
             while cursor is not None:
-                response = requests.get(sub_query + cursor).json()
+                response = requests.get(sub_query + cursor).json()  # citing paper
+                output.append(response)
                 cursor = response["meta"]["next_cursor"]
-                links = [r["open_access"]["oa_url"] for r in response["results"] if r["open_access"]["oa_url"] is not None]
-                for link in links:
-                    output.append(link)
 
         # cache results
         json.dump(output, open(filepath, "w"))
@@ -157,7 +154,7 @@ class OpenAlexClient:
 
 class PdfCrawler:
     CACHE_DIR_NAME = "pdfs"
-    COUNTER = atomics.atomic(width=4, atype=atomics.INT)
+    COUNTER = 0
     TOTAL = 0
 
     @staticmethod
@@ -174,34 +171,39 @@ class PdfCrawler:
             response = requests.get(url, timeout=10)  # timeout in seconds
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            PdfCrawler.COUNTER.fetch_inc()
+            PdfCrawler.COUNTER += 1  # will lead to race condition, but that's okay
             LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
         except requests.exceptions.Timeout:
             LOG.critical(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - timed out")
 
     @staticmethod
-    def download_pdfs(cache_key, citing_paper_urls: list):
+    def download_pdfs(cache_key, citing_paper_objs: list):
+        urls = []
+        for citing_paper in citing_paper_objs:
+            urls.append([r["open_access"]["oa_url"] for r in citing_paper["results"] if r["open_access"]["oa_url"] is not None])
+        urls = [url for sublist in urls for url in sublist]
+
         dir_exists, dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
         if not dir_exists:
             os.mkdir(dir_path)
             LOG.info(f"created directory for pdfs in cache")
 
-        LOG.info(f"concurrently downloading {len(citing_paper_urls)} pdfs")
-        PdfCrawler.TOTAL = len(citing_paper_urls)
+        LOG.info(f"concurrently downloading {len(urls)} pdfs")
+        PdfCrawler.TOTAL = len(urls)
 
-        for url in citing_paper_urls:
+        for url in urls:
             filename_len = 10
             filename = hashlib.sha256(url.encode()).hexdigest().lower()[0:filename_len] + ".pdf"
             filepath = os.path.join(dir_path, filename)
 
             is_cached = os.path.isfile(filepath)
             if is_cached:
-                PdfCrawler.COUNTER.fetch_inc()
-                LOG.info(f"\tprogress: {PdfCrawler.COUNTER.load()}/{PdfCrawler.TOTAL} - found in cache")
+                PdfCrawler.COUNTER += 0
+                LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - found in cache")
                 continue
 
             PdfCrawler.download(url, filepath)
-    
+
     @staticmethod
     def convert_pdf_to_txt(cache_key):
         TXT_CACHE_DIR_NAME = "txts"
@@ -243,16 +245,29 @@ class SentimentClassifier:
         # ollama: "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
         pass
 
-if __name__ == "__main__":
+
+def main():
     args = get_args()
     LOG.info(f"args: {args}")
 
+    # find researcher
     researcher_obj = OpenAlexClient.get_researcher_obj(args)
-    cache_key = hashlib.sha256(researcher_obj["display_name"].encode()).hexdigest().lower()[0:24]
+    cache_key = hashlib.sha256(json.dumps(researcher_obj).encode()).hexdigest().lower()[0:24]
 
+    # find publications
     paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
-    
-    if (args.download_pdfs):
-        citing_paper_urls = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
-        PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
+
+    # find citing papers
+    citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
+
+    # optionally download all citing papers
+    if args.download_pdfs:
+        PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
         PdfCrawler.convert_pdf_to_txt(cache_key)
+
+    # get citation
+    # run: `cat ./.cache/a72fe5a4521c2e6c6a8f6c67/citing-papers.json | jq .`
+
+
+if __name__ == "__main__":
+    main()
