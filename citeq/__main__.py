@@ -206,7 +206,7 @@ class SemanticScholarClient:
         return best_match
 
 
-class PdfCrawler:
+class OpenAlexPdfCrawler:
     CACHE_DIR_NAME = "pdfs"
     COUNTER = 0
     TOTAL = 0
@@ -225,10 +225,10 @@ class PdfCrawler:
             response = requests.get(url, timeout=10)  # timeout in seconds
             with open(filepath, "wb") as f:
                 f.write(response.content)
-            PdfCrawler.COUNTER += 1  # will lead to race condition, but that's okay
-            LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - downloaded")
+            OpenAlexPdfCrawler.COUNTER += 1  # will lead to race condition, but that's okay
+            LOG.info(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - downloaded")
         except requests.exceptions.Timeout:
-            LOG.critical(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - timed out")
+            LOG.critical(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - timed out")
 
     @staticmethod
     def download_pdfs(cache_key, citing_paper_objs: list):
@@ -237,13 +237,13 @@ class PdfCrawler:
             urls.append([r["open_access"]["oa_url"] for r in citing_paper["results"] if r["open_access"]["oa_url"] is not None])
         urls = [url for sublist in urls for url in sublist]
 
-        dir_exists, dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
+        dir_exists, dir_path = is_cached_get_path(cache_key, OpenAlexPdfCrawler.CACHE_DIR_NAME)
         if not dir_exists:
             os.mkdir(dir_path)
             LOG.info(f"created directory for pdfs in cache")
 
         LOG.info(f"concurrently downloading {len(urls)} pdfs")
-        PdfCrawler.TOTAL = len(urls)
+        OpenAlexPdfCrawler.TOTAL = len(urls)
 
         for url in urls:
             filename_len = 10
@@ -252,17 +252,17 @@ class PdfCrawler:
 
             is_cached = os.path.isfile(filepath)
             if is_cached:
-                PdfCrawler.COUNTER += 0
-                LOG.info(f"\tprogress: {PdfCrawler.COUNTER}/{PdfCrawler.TOTAL} - found in cache")
+                OpenAlexPdfCrawler.COUNTER += 0
+                LOG.info(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - found in cache")
                 continue
 
-            PdfCrawler.download(url, filepath)
+            OpenAlexPdfCrawler.download(url, filepath)
 
     @staticmethod
     def convert_pdf_to_txt(cache_key):
         TXT_CACHE_DIR_NAME = "txts"
 
-        pdf_dir_exists, pdf_dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
+        pdf_dir_exists, pdf_dir_path = is_cached_get_path(cache_key, OpenAlexPdfCrawler.CACHE_DIR_NAME)
         assert pdf_dir_exists, f"no pdfs found in cache"
 
         txt_dir_exists, txt_dir_path = is_cached_get_path(cache_key, TXT_CACHE_DIR_NAME)
@@ -312,8 +312,8 @@ def main():
     if args.download_pdfs:
         paper_urls = OpenAlexClient.get_paper_urls(cache_key, oa_researcher_obj)
         citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
-        PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
-        PdfCrawler.convert_pdf_to_txt(cache_key)
+        OpenAlexPdfCrawler.download_pdfs(cache_key, citing_paper_objs)
+        OpenAlexPdfCrawler.convert_pdf_to_txt(cache_key)
 
     # match with researcher in semantic scholar
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
