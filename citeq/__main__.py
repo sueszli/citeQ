@@ -251,7 +251,11 @@ class SemanticScholarClient:
 
         # semantic scholar researcher query:
         # see: https://api.semanticscholar.org/api-docs/#tag/Author-Data/operation/get_graph_get_author_search
-        query = "https://api.semanticscholar.org/graph/v1/author/search?query=" + "+".join(args.name).strip().lower() + "&fields=authorId,url,name,aliases,paperCount,citationCount,hIndex,papers.year"
+        query = (
+            "https://api.semanticscholar.org/graph/v1/author/search?query="
+            + "+".join(args.name).strip().lower()
+            + "&fields=authorId,url,name,aliases,paperCount,citationCount,hIndex,papers.year&limit=1000"
+        )
         response = requests.get(query).json()
         total = response["total"]
         assert total > 0, f"no results found for {args.name}"
@@ -293,6 +297,33 @@ class SemanticScholarClient:
         LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points → {best_match['url']}")
         return best_match
 
+    @staticmethod
+    def get_citations(cache_key: str, ss_researcher_obj: dict) -> dict:
+        filename = "ss-citing-papers.json"
+        is_cached, filepath = is_cached_get_path(cache_key, filename)
+        if is_cached:
+            LOG.info(f"found citing papers in cache: '{filepath}'")
+            return json.load(open(filepath, "r"))
+
+        id = ss_researcher_obj["authorId"]
+        LOG.info(f"fetching citations")
+        query = f"https://api.semanticscholar.org/graph/v1/author/{id}/papers?limit=1000"
+        LOG.info(f"\tquery: {query}")
+
+        # fetch papers
+        papers = []
+        offset = None
+        while (offset is None) or (offset != 0):
+            response = requests.get(query + ("" if offset is None else f"&offset={offset}")).json()
+            papers.extend(response["data"])
+            offset = response["offset"]
+        assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
+        LOG.info(f"\tfound {len(papers)} papers")
+
+        # fetch citations of papers
+
+        return {}
+
 
 class OllamaSentimentClassifier:
     def __init__(self):
@@ -319,8 +350,7 @@ def main():
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
 
     # find citations on semantic scholar
-    url = ss_researcher_obj["url"]
-    LOG.info(f"fetching citations from {url}")
+    citations = SemanticScholarClient.get_citations(cache_key, ss_researcher_obj)
 
 
 if __name__ == "__main__":
