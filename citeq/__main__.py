@@ -294,7 +294,7 @@ class SemanticScholarClient:
         return best_match
 
 
-class SentimentClassifier:
+class OllamaSentimentClassifier:
     def __init__(self):
         # ollama: "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
         pass
