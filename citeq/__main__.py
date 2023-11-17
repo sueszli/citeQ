@@ -45,11 +45,6 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
     return is_cached, filepath
 
 
-class SemanticScholarClient:
-    def __init__():
-        pass
-
-
 class OpenAlexClient:
     @staticmethod
     def get_researcher_obj(args: argparse.Namespace) -> dict:
@@ -157,6 +152,61 @@ class OpenAlexClient:
         return output
 
 
+class SemanticScholarClient:
+    @staticmethod
+    def match(args: argparse.Namespace, oa_researcher_obj: dict) -> dict:
+        # open alex researcher obj:
+        oa_num_publications = oa_researcher_obj["works_count"]
+        oa_publications_dict = {elem["year"]: [elem["works_count"], elem["cited_by_count"]] for elem in oa_researcher_obj["counts_by_year"]}  # {year: {num_publications, num_citations}}
+        oa_i10_index = oa_researcher_obj["summary_stats"]["i10_index"]
+        oa_h_index = oa_researcher_obj["summary_stats"]["h_index"]
+        assert oa_num_publications > 0, f"no publications found for {args.name}"
+
+        # semantic scholar researcher query:
+        # see: https://api.semanticscholar.org/api-docs/#tag/Author-Data/operation/get_graph_get_author_search
+        query = "https://api.semanticscholar.org/graph/v1/author/search?query=" + "+".join(args.name).strip().lower() + "&fields=authorId,url,name,aliases,paperCount,citationCount,hIndex,papers.year"
+        response = requests.get(query).json()
+        total = response["total"]
+        assert total > 0, f"no results found for {args.name}"
+        data = response["data"]
+        data = [elem for elem in data if elem["paperCount"] > 0 and elem["citationCount"] > 0]
+        assert len(data) > 0, f"no results with at least one work or citation"
+        LOG.info(f"found {total} matching researchers on semantic-scholar, {len(data)} of which have at least one publication")
+
+        for elem in data:
+            # name match
+            display_name = elem["name"]
+            name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
+            alias_disp_score = 0 if args.alias is None else fuzz.partial_token_sort_ratio(args.alias, display_name)
+
+            # hint: alternative names
+            altnames = elem["aliases"]
+            avg_name_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
+            avg_alias_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
+
+            # rough paper metrics
+            total_paper_count_diff = abs(elem["paperCount"] - oa_num_publications)
+            h_index_diff = abs(elem["hIndex"] - oa_h_index)
+            yearly_citation_count_diff = 0
+            ss_publications_dict = {p["year"]: elem["papers"].count(p) for p in elem["papers"] if p}
+            for year in ss_publications_dict.keys():
+                if year not in oa_publications_dict.keys():
+                    continue
+                # get num_publications in set {year: {num_publications, num_citations}}
+                oa_pubs: int = oa_publications_dict[year][0]
+                ss_pubs: int = ss_publications_dict[year]
+                yearly_citation_count_diff += abs(oa_pubs - ss_pubs)
+
+            total_score = name_disp_score + alias_disp_score + avg_name_altnames_score + avg_alias_altnames_score
+            total_score -= total_paper_count_diff + h_index_diff + yearly_citation_count_diff
+            elem["total_score"] = total_score
+            LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}'")
+
+        best_match = max(data, key=lambda result: result["total_score"])
+        LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points")
+        return best_match
+
+
 class PdfCrawler:
     CACHE_DIR_NAME = "pdfs"
     COUNTER = 0
@@ -255,17 +305,17 @@ def main():
     args = get_args()
     LOG.info(f"args: {args}")
 
-    # find researcher
-    researcher_obj = OpenAlexClient.get_researcher_obj(args)
-    cache_key = hashlib.sha256(json.dumps(researcher_obj).encode()).hexdigest().lower()[0:24]
+    # find researcher in openalex
+    oa_researcher_obj = OpenAlexClient.get_researcher_obj(args)
+    cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
 
-    orcid = researcher_obj["orcid"].replace("https://orcid.org/", "")
-    LOG.info(f"orcid: {orcid}")
-    # get https://api.semanticscholar.org/api-docs/#tag/Author-Data/operation/get_graph_get_author_search
+    # match with researcher in semantic scholar
+    ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
+    url = ss_researcher_obj["url"]
 
-    # download all citing papers via openalex
+    # optional: download all citing papers
     if args.download_pdfs:
-        paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
+        paper_urls = OpenAlexClient.get_paper_urls(cache_key, oa_researcher_obj)
         citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
         PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
         PdfCrawler.convert_pdf_to_txt(cache_key)
