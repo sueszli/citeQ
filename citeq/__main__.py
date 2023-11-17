@@ -308,15 +308,15 @@ def main():
     oa_researcher_obj = OpenAlexClient.get_researcher_obj(args)
     cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
 
-    # match with researcher in semantic scholar
-    ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
-
     # optional: download all citing papers
     if args.download_pdfs:
         paper_urls = OpenAlexClient.get_paper_urls(cache_key, oa_researcher_obj)
         citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
         PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
         PdfCrawler.convert_pdf_to_txt(cache_key)
+
+    # match with researcher in semantic scholar
+    ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
 
     # find citations on semantic scholar
 
