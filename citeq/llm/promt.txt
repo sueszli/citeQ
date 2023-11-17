@@ -1,0 +1,27 @@
+The following is a set of citation purpose categories. For each category first line is category name, second line is category description, third line is an example of this category.
+
+Criticizing
+Criticism can be positive or negative. A citing sentence is classified as “criticizing” when it mentions the weakness/strengths of the cited approach, negatively/positively criticizes the cited approach, negatively/positively evaluates the cited source.
+Chiang (2005) introduced a constituent feature to reward phrases that match a syntactic tree but did not yield significant improvement.
+
+Comparison
+A citing sentence is classified as "comparison” when it compares or contrasts the work in the cited paper to the author’s work. It overlaps with the first category when the citing sentence says one approach is not as good as the other approach. In this case we use the first category.
+Our approach permits an alternative to minimum error-rate training (MERT; Och, 2003);
+
+Use
+A citing sentence is classified as "use” when the citing paper uses the method, idea or tool of the cited paper.
+We perform the MERT training (Och, 2003) to tune the optimal feature weights on the development set.
+
+Substantiating
+A citing sentence is classified as “substantiating” when the results, claims of the citing work substantiate, verify the cited paper and support each other.
+It was found to produce automated scores, which strongly correlate with human judgements about translation fluency (Papineni et al. , 2002).
+
+Basis
+A citing sentence is classified as “basis” when the author uses the cited work as starting point or motivation and extends on the cited work.
+Our model is derived from the hidden-markov model for word alignment (Vogel et al., 1996; Och and Ney, 2000).
+
+Neutral (Other)
+A citing sentence is classified as “neutral” when it is a neutral description of the cited work or if it doesn’t come under any of the above categories.
+The solutions of these problems depend heavily on the quality of the word alignment (Och and Ney, 2000).
+
+Classify the following in text citation into one of these categories:
