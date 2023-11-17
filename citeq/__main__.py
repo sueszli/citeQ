@@ -18,6 +18,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("name", nargs="+", help="the researcher's name", type=str)
     parser.add_argument("-a", "--alias", nargs="+", help="the researcher's alternative names", type=str)
     parser.add_argument("-i", "--institution", nargs="+", help="the researcher's last known institution", type=str)
+    parser.add_argument("-d", "--download-pdfs", help="download all citation pdfs", action="store_false") 
     return parser.parse_args()
 
 
@@ -200,17 +201,15 @@ class PdfCrawler:
                 continue
 
             PdfCrawler.download(url, filepath)
-
-
-class PdfParser:
-    CACHE_DIR_NAME = "txts"
-
+    
     @staticmethod
     def convert_pdf_to_txt(cache_key):
+        TXT_CACHE_DIR_NAME = "txts"
+
         pdf_dir_exists, pdf_dir_path = is_cached_get_path(cache_key, PdfCrawler.CACHE_DIR_NAME)
         assert pdf_dir_exists, f"no pdfs found in cache"
 
-        txt_dir_exists, txt_dir_path = is_cached_get_path(cache_key, PdfParser.CACHE_DIR_NAME)
+        txt_dir_exists, txt_dir_path = is_cached_get_path(cache_key, TXT_CACHE_DIR_NAME)
         if not txt_dir_exists:
             os.mkdir(txt_dir_path)
             LOG.info(f"created directory for txts in cache")
@@ -239,21 +238,23 @@ class PdfParser:
                 LOG.critical(f"\tprogress: {i}/{len(pdf_paths)} - error: {e}")
 
 
-class Classifier:
+class SentimentClassifier:
     def __init__(self):
-        # "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
+        # ollama: "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
         pass
 
 if __name__ == "__main__":
     args = get_args()
+    LOG.info(f"args: {args}")
 
     researcher_obj = OpenAlexClient.get_researcher_obj(args)
     cache_key = hashlib.sha256(researcher_obj["display_name"].encode()).hexdigest().lower()[0:24]
 
     paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
-    citing_paper_urls = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
-
-    PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
-
+    
+    if (args.download_pdfs):
+        citing_paper_urls = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
+        PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
+        PdfCrawler.convert_pdf_to_txt(cache_key)
 
     # next step: feeding everything into ollama (docker image)
