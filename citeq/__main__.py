@@ -337,6 +337,8 @@ class SemanticScholarClient:
                 LOG.info(f"\t\tprogress: {c}/{len(papers)}")
                 c += 1
 
+        # TODO: fix rate limit - https://github.com/tomasbasham/ratelimit
+
         # cache results
         json.dump(citations, open(filepath, "w"))
         LOG.info(f"{len(citations)} citations cached at '{filepath}'")
