@@ -256,5 +256,3 @@ if __name__ == "__main__":
         citing_paper_urls = OpenAlexClient.get_citing_paper_pdf_urls(cache_key, paper_urls)
         PdfCrawler.download_pdfs(cache_key, citing_paper_urls)
         PdfCrawler.convert_pdf_to_txt(cache_key)
-
-    # next step: feeding everything into ollama (docker image)
