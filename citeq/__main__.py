@@ -319,6 +319,8 @@ def main():
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
 
     # find citations on semantic scholar
+    url = ss_researcher_obj["url"]
+    LOG.info(f"fetching citations from {url}")
 
 
 if __name__ == "__main__":
