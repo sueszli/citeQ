@@ -48,9 +48,8 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
 class OpenAlexClient:
     @staticmethod
     def get_researcher_obj(args: argparse.Namespace) -> dict:
-        # query author
         # see: https://docs.openalex.org/api-entities/authors/author-object
-        # to understand cursor, see: https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/paging#cursor-paging
+        # to understand the cursor, see: https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/paging#cursor-paging
 
         results = []
         query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "?&per-page=200&cursor="
@@ -86,7 +85,7 @@ class OpenAlexClient:
             LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
         best_match = max(filtered_results, key=lambda result: result["total_score"])
-        LOG.info(f"\tbest matching researcher: '{best_match['display_name']}' with {best_match['total_score']} points")
+        LOG.info(f"\tbest matching researcher: '{best_match['display_name']}' with {best_match['total_score']} points → {best_match['id']}")
         return best_match
 
     @staticmethod
@@ -203,7 +202,7 @@ class SemanticScholarClient:
             LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}'")
 
         best_match = max(data, key=lambda result: result["total_score"])
-        LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points")
+        LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points → {best_match['url']}")
         return best_match
 
 
@@ -320,7 +319,6 @@ def main():
         PdfCrawler.convert_pdf_to_txt(cache_key)
 
     # find citations on semantic scholar
-    url = ss_researcher_obj["url"]
 
 
 if __name__ == "__main__":
