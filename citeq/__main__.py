@@ -45,6 +45,11 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
     return is_cached, filepath
 
 
+class SemanticScholarClient:
+    def __init__():
+        pass
+
+
 class OpenAlexClient:
     @staticmethod
     def get_researcher_obj(args: argparse.Namespace) -> dict:
@@ -93,7 +98,7 @@ class OpenAlexClient:
     def get_paper_urls(cache_key: str, researcher_obj: dict) -> list:
         LOG.info(f"fetching paper urls")
 
-        filename = "paper-urls.json"
+        filename = "oa-paper-urls.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
             LOG.info(f"found papers in cache: '{filepath}'")
@@ -125,7 +130,7 @@ class OpenAlexClient:
     def get_citing_paper_objs(cache_key: str, paper_urls: list) -> list:
         LOG.info(f"fetching citing papers")
 
-        filename = "citing-papers.json"
+        filename = "oa-citing-papers.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
             LOG.info(f"found citing papers in cache: '{filepath}'")
@@ -254,19 +259,18 @@ def main():
     researcher_obj = OpenAlexClient.get_researcher_obj(args)
     cache_key = hashlib.sha256(json.dumps(researcher_obj).encode()).hexdigest().lower()[0:24]
 
-    # find publications
-    paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
+    orcid = researcher_obj["orcid"].replace("https://orcid.org/", "")
+    LOG.info(f"orcid: {orcid}")
+    # get https://api.semanticscholar.org/api-docs/#tag/Author-Data/operation/get_graph_get_author_search
 
-    # find citing papers
-    citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
-
-    # optionally download all citing papers
+    # download all citing papers via openalex
     if args.download_pdfs:
+        paper_urls = OpenAlexClient.get_paper_urls(cache_key, researcher_obj)
+        citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
         PdfCrawler.download_pdfs(cache_key, citing_paper_objs)
         PdfCrawler.convert_pdf_to_txt(cache_key)
 
-    # get citation
-    # run: `cat ./.cache/a72fe5a4521c2e6c6a8f6c67/citing-papers.json | jq .`
+    # get citations
 
 
 if __name__ == "__main__":
