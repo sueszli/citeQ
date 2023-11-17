@@ -85,7 +85,7 @@ class OpenAlexClient:
             LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}' {('from ' + institution) if institution is not None else ''}")
 
         best_match = max(filtered_results, key=lambda result: result["total_score"])
-        LOG.info(f"\tbest matching researcher: '{best_match['display_name']}' with {best_match['total_score']} points → {best_match['id']}")
+        LOG.info(f"\tbest matching researcher: '{best_match['display_name']}' with {best_match['total_score']} points → validate: {best_match['id']}")
         return best_match
 
     @staticmethod
@@ -122,7 +122,7 @@ class OpenAlexClient:
 
     @staticmethod
     def get_citing_paper_objs(cache_key: str, paper_urls: list) -> list:
-        LOG.info(f"fetching citing papers")
+        LOG.info(f"fetching citations")
 
         filename = "oa-citing-papers.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
@@ -134,6 +134,7 @@ class OpenAlexClient:
         # see: https://docs.openalex.org/api-entities/works/work-object#cited_by_api_url
         output = []
 
+        LOG.info(f"fetching citing papers")
         queries = [paper["cited_by_api_url"] for paper in paper_urls]
         for i, query in enumerate(queries):
             sub_query = query + "?&per-page=200&cursor="
@@ -147,7 +148,7 @@ class OpenAlexClient:
 
         # cache results
         json.dump(output, open(filepath, "w"))
-        LOG.info(f"{len(output)} citing papers cached at '{filepath}'")
+        LOG.info(f"{len(output)} citations cached at '{filepath}'")
         return output
 
 
@@ -294,12 +295,12 @@ class SemanticScholarClient:
             LOG.info(f"\t[{str(total_score).zfill(3)} points]: '{display_name}'")
 
         best_match = max(data, key=lambda result: result["total_score"])
-        LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points → {best_match['url']}")
+        LOG.info(f"\tbest matching researcher: '{best_match['name']}' with {best_match['total_score']} points → validate: {best_match['url']}")
         return best_match
 
     @staticmethod
-    def get_citations(cache_key: str, ss_researcher_obj: dict) -> dict:
-        filename = "ss-citing-papers.json"
+    def get_citations(cache_key: str, ss_researcher_obj: dict) -> list:
+        filename = "ss-citations.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
             LOG.info(f"found citing papers in cache: '{filepath}'")
@@ -316,13 +317,13 @@ class SemanticScholarClient:
             response = requests.get(query + ("" if offset is None else f"&offset={offset}")).json()
             papers.extend(response["data"])
             offset = response["offset"]
-            LOG.info(f"\t\tprogress: {len(papers)}/{response['total']}")
+            LOG.info(f"\t\tprogress: {len(papers)}/{ss_researcher_obj['paperCount']}")
         assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
         LOG.info(f"\tfound {len(papers)} papers")
 
         # fetch citations of papers
         # see: https://api.semanticscholar.org/api-docs/#tag/Paper-Data/operation/get_graph_get_paper_citations
-        contexts = []
+        citations = []
         c = 0
         for paper in papers:
             id = paper["paperId"]
@@ -331,14 +332,15 @@ class SemanticScholarClient:
             offset = None
             while (offset is None) or (offset != 0):
                 response = requests.get(paper_query + ("" if offset is None else f"&offset={offset}")).json()
-                contexts.extend(response["data"])
+                citations.extend(response["data"])
                 offset = response["offset"]
                 LOG.info(f"\t\tprogress: {c}/{len(papers)}")
                 c += 1
 
-        LOG.info(json.dumps(contexts, indent=4))
-
-        return {}
+        # cache results
+        json.dump(citations, open(filepath, "w"))
+        LOG.info(f"{len(citations)} citations cached at '{filepath}'")
+        return citations
 
 
 class OllamaSentimentClassifier:
