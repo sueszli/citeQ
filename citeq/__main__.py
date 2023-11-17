@@ -317,7 +317,6 @@ class SemanticScholarClient:
             response = requests.get(query + ("" if offset is None else f"&offset={offset}")).json()
             papers.extend(response["data"])
             offset = response["offset"]
-            LOG.info(f"\t\tprogress: {len(papers)}/{ss_researcher_obj['paperCount']}")
         assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
         LOG.info(f"\tfound {len(papers)} papers")
 
@@ -334,7 +333,7 @@ class SemanticScholarClient:
                 response = requests.get(paper_query + ("" if offset is None else f"&offset={offset}")).json()
                 citations.extend(response["data"])
                 offset = response["offset"]
-                LOG.info(f"\t\tprogress: {c}/{len(papers)}")
+                LOG.info(f"\tprogress: {c}/{len(papers)}")
                 c += 1
 
         # TODO: fix rate limit - https://github.com/tomasbasham/ratelimit
