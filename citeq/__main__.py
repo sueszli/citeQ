@@ -6,6 +6,7 @@ import json
 import os
 import hashlib
 import asyncio
+import time
 from PyPDF2 import PdfReader
 
 
@@ -158,15 +159,15 @@ class OpenAlexPdfCrawler:
     TOTAL = 0
 
     @staticmethod
-    def background(f):
+    def __background(f):
         def wrapped(*args, **kwargs):
             return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
 
         return wrapped
 
     @staticmethod
-    @background
-    def download(url: str, filepath: str):
+    @__background
+    def __download(url: str, filepath: str):
         try:
             response = requests.get(url, timeout=10)  # timeout in seconds
             with open(filepath, "wb") as f:
@@ -202,7 +203,7 @@ class OpenAlexPdfCrawler:
                 LOG.info(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - found in cache")
                 continue
 
-            OpenAlexPdfCrawler.download(url, filepath)
+            OpenAlexPdfCrawler.__download(url, filepath)
 
     @staticmethod
     def convert_pdf_to_txt(cache_key):
@@ -326,17 +327,32 @@ class SemanticScholarClient:
         c = 0
         for paper in papers:
             id = paper["paperId"]
-            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts"
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents"
 
+            # paginate through citations (also avoid rate limit)
             offset = None
             while (offset is None) or (offset != 0):
-                response = requests.get(paper_query + ("" if offset is None else f"&offset={offset}")).json()
+                MAX_RETRIES = 10
+                TIMEOUT = 60 * 1
+
+                def request(url: str, retries: int = 0) -> dict:
+                    if retries > MAX_RETRIES:
+                        raise Exception("too many retries")
+
+                    r = requests.get(url)
+                    if r.status_code != 200:
+                        LOG.warning(f"request failed with status code {r.status_code} - retrying in {TIMEOUT} seconds")
+                        time.sleep(TIMEOUT)
+                        return request(url, retries + 1)
+                    return r.json()
+
+                ppquery = paper_query + ("" if offset is None else f"&offset={offset}")
+                response = request(ppquery)
+                assert response
                 citations.extend(response["data"])
                 offset = response["offset"]
                 LOG.info(f"\tprogress: {c}/{len(papers)}")
                 c += 1
-
-        # TODO: fix rate limit - https://github.com/tomasbasham/ratelimit
 
         # cache results
         json.dump(citations, open(filepath, "w"))
