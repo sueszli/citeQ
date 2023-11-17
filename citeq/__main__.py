@@ -91,12 +91,12 @@ class OpenAlexClient:
 
     @staticmethod
     def get_paper_urls(cache_key: str, researcher_obj: dict) -> list:
-        LOG.info(f"fetching all papers published by the researcher")
+        LOG.info(f"fetching paper urls")
 
         filename = "paper-urls.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
-            LOG.info(f"found paper urls in cache: '{filepath}'")
+            LOG.info(f"found papers in cache: '{filepath}'")
             return json.load(open(filepath, "r"))
 
         match_works = researcher_obj["works_api_url"]
@@ -123,12 +123,12 @@ class OpenAlexClient:
 
     @staticmethod
     def get_citing_paper_objs(cache_key: str, paper_urls: list) -> list:
-        LOG.info(f"fetching all papers citing the papers published by the researcher")
+        LOG.info(f"fetching citing papers")
 
         filename = "citing-papers.json"
         is_cached, filepath = is_cached_get_path(cache_key, filename)
         if is_cached:
-            LOG.info(f"found cited paper urls in cache: '{filepath}'")
+            LOG.info(f"found citing papers in cache: '{filepath}'")
             return json.load(open(filepath, "r"))
 
         # for each paper, get citing papers
@@ -148,7 +148,7 @@ class OpenAlexClient:
 
         # cache results
         json.dump(output, open(filepath, "w"))
-        LOG.info(f"{len(output)} pdf urls to citing papers cached at '{filepath}'")
+        LOG.info(f"{len(output)} citing papers cached at '{filepath}'")
         return output
 
 
