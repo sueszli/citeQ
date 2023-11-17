@@ -308,7 +308,6 @@ class SemanticScholarClient:
         id = ss_researcher_obj["authorId"]
         LOG.info(f"fetching citations")
         query = f"https://api.semanticscholar.org/graph/v1/author/{id}/papers?limit=1000"
-        LOG.info(f"\tquery: {query}")
 
         # fetch papers
         papers = []
@@ -317,10 +316,27 @@ class SemanticScholarClient:
             response = requests.get(query + ("" if offset is None else f"&offset={offset}")).json()
             papers.extend(response["data"])
             offset = response["offset"]
+            LOG.info(f"\t\tprogress: {len(papers)}/{response['total']}")
         assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
         LOG.info(f"\tfound {len(papers)} papers")
 
         # fetch citations of papers
+        # see: https://api.semanticscholar.org/api-docs/#tag/Paper-Data/operation/get_graph_get_paper_citations
+        contexts = []
+        c = 0
+        for paper in papers:
+            id = paper["paperId"]
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts"
+
+            offset = None
+            while (offset is None) or (offset != 0):
+                response = requests.get(paper_query + ("" if offset is None else f"&offset={offset}")).json()
+                contexts.extend(response["data"])
+                offset = response["offset"]
+                LOG.info(f"\t\tprogress: {c}/{len(papers)}")
+                c += 1
+
+        LOG.info(json.dumps(contexts, indent=4))
 
         return {}
 
