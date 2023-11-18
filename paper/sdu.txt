@@ -1,0 +1,52 @@
+
+SDU is co-located with AAAI 2024 in Vancouver, Canada. More information about 
+the venue @ https://aaai.org/aaai-conference/ [1]
+
+Important Dates:
+
+- Paper submission deadline: November 24, 2023 (11:59 PM)
+- Notification date: December 11, 2023
+- Camera-ready submissions: January 5, 2024 (11:59 PM)
+- SDU workshop at AAAI 2024: February 26, 2024
+
+All deadlines are "Anywhere on Earth (AOE)" (UTC-12)
+
+Submission through Microsoft CMT - 
+https://cmt3.research.microsoft.com/SDU2024 [2]
+
+About Workshop:
+
+Scientific documents such as research papers, patents, books, or technical 
+reports are some of the most valuable resources of human knowledge. At the 
+AAAI-24 Workshop on Scientific Document Understanding (SDU@AAAI [3]-24), we 
+aim to gather insights into the recent advances and remaining challenges in 
+scientific document understanding. Researchers from related fields are 
+invited to submit papers on the recent advances, resources, tools, and 
+upcoming challenges for SDU.
+
+Topics of Interest:
+
+The goal of the SDU workshop is to gather insights into recent advances and 
+remaining challenges in scientific document understanding. To this end, the 
+topics of interest for this workshop include but are not limited to:
+
+- Information extraction and information retrieval for scientific documents
+- Question answering and question generation for scholarly documents
+- Word sense disambiguation, acronym identification, expansion, and 
+definition extraction
+- Developing LLMs/generative AI models specific to scientific domains
+- Instruction tuning and in-context learning with LLMs for scientific 
+documents
+- Document summarization, text mining, document topic classification, and 
+machine reading comprehension for scientific documents
+- Graph analysis applications including knowledge graph construction and 
+representation, graph reasoning, and query knowledge graphs
+- Multi-modal and multi-lingual scholarly text processing
+- Biomedical image processing, scientific image plagiarism detection, and 
+data visualization
+- Code/Pseudo-code generation from text and image/diagram captioning
+- New language understanding resources such as new syntactic/semantic 
+parsers, language models, or techniques to encode scholarly text
+- Survey or analysis papers on scientific document understanding and new 
+tasks and challenges related to each scientific domain
+- Factuality, data verification, and anti-science detection
