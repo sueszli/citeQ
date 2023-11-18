@@ -1,5 +1,5 @@
-\Title{A better way to format your document for CEUR-WS}
-\Author{Dmitry S. Kulyabov\sep Ilaria Tiddi\sep Manfred Jeusfeld}
+\Title{CiteQ: Citation Quality Assessment for Scientific Papers through LLM}
+\Author{Yahya Jabary\sep Onur Eren Arpacı}
 \Keywords{LaTeX class \sep paper template \sep paper formatting \sep CEUR-WS}
 \Subject{CEUR Workshop Proceedings (CEUR-WS.org)}
 \Copyright{\copyright\ 2022\ Copyright for this paper by its authors. Use permitted under Creative Commons License Attribution 4.0 International (CC BY 4.0).}
