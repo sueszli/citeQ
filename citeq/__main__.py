@@ -1,4 +1,4 @@
-from thefuzz import fuzz, process
+from thefuzz import fuzz
 from typing import Tuple
 import requests
 import argparse
@@ -372,7 +372,7 @@ def main():
 
     # find researcher in openalex
     oa_researcher_obj = OpenAlexClient.get_researcher_obj(args)
-    cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
+    cache_key = hashlib.sha256(oa_researcher_obj["id"].encode()).hexdigest().lower()[0:24]
 
     # optional: download all citing papers
     if args.download_pdfs:

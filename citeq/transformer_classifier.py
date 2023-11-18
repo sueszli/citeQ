@@ -1,24 +1,19 @@
-# todo:
-# - make this an independent module
-# - give sentiment class (based on https://aclanthology.org/N13-1067.pdf)
-# - give ability to process pdf (optional, just out of curiosity)
-
-
 from enum import Enum
+
 
 from transformers import pipeline
 import tensorflow as tf
 import torch as th
 
 
-class SentimentScoreLabel(Enum):
+class SentimentLabel(Enum):
     NEGATIVE = 0
     POSITIVE = 1
 
 
-class NatualLanguageProcessor:
+class TransformerClassifier:
     @staticmethod
-    def get_sentiment_score(text: str) -> tuple[SentimentScoreLabel, float]:
+    def get_sentiment_score(text: str) -> tuple[SentimentLabel, float]:
         classifier = pipeline("text-classification", model="distilbert-base-uncased-finetuned-sst-2-english")
         result = classifier(text)
         assert result
@@ -26,13 +21,9 @@ class NatualLanguageProcessor:
         label = result["label"]
         score = result["score"]
         if label == "NEGATIVE":
-            label = SentimentScoreLabel.NEGATIVE
+            label = SentimentLabel.NEGATIVE
         elif label == "POSITIVE":
-            label = SentimentScoreLabel.POSITIVE
+            label = SentimentLabel.POSITIVE
         else:
             raise Exception("unknown label")
         return label, score
-
-
-if __name__ == "__main__":
-    print(NatualLanguageProcessor.get_sentiment_score("what a great day!"))
