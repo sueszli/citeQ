@@ -36,6 +36,7 @@ class LogInitializer:
         # see: https://rich.readthedocs.io/en/stable/reference/logging.html
         rich_handler = RichHandler(rich_tracebacks=True, show_time=False, show_path=False, keywords=HIGHLIGHTED_WORDS)
         logging.basicConfig(level=logging.INFO, format="%(message)s", handlers=[rich_handler])
+        logging.getLogger("backoff").addHandler(rich_handler)
 
         os.system("cls" if os.name == "nt" else "clear")
         print(BANNER_ASCII)
