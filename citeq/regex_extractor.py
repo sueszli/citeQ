@@ -2,6 +2,9 @@ from unstructured.partition.pdf import partition_pdf
 from nltk.tokenize import sent_tokenize
 import re
 
+# this class is unused because it is not robust enough to handle all the different
+# kinds of pdfs that are out there. it is kept here for reference purposes only.
+
 
 class RegexCitationExtractor:
     @staticmethod

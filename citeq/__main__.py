@@ -1,4 +1,4 @@
-from thefuzz import fuzz, process
+from thefuzz import fuzz
 from typing import Tuple
 import requests
 import argparse

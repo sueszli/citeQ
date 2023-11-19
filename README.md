@@ -11,11 +11,11 @@ a8"     ""  88    88    a8P_____88  88          88
 🎓 citation sentiment classifier
 ```
 
+<br>
+
 ⚠️ work in progress ⚠️
 
-<br><br>
-
-## citeq python script
+<br>
 
 _macos installation:_
 
@@ -36,20 +36,13 @@ pip3 install -r requirements.txt > /dev/null
 brew install --cask docker
 docker --version
 
-# install ollama
+# install mistral model
 docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+docker exec -it ollama ollama pull llama2
 
 # run
 python3 citeq --help
 
 # example usage
 python3 citeq jimmy lin -i university of waterloo
-```
-
-_playing around with ollama:_
-
-try out other llms: https://ollama.ai/library
-
-```bash
-docker exec -it ollama ollama run llama2
 ```
