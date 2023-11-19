@@ -8,6 +8,10 @@ import hashlib
 import asyncio
 import time
 from PyPDF2 import PdfReader
+from db import Researcher, Paper, Authorship, Citation, engine
+from sqlalchemy.orm import Session
+from types import SimpleNamespace
+import backoff
 
 
 from logger import LOG_SINGLETON as LOG, trace
@@ -46,40 +50,69 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
     return is_cached, filepath
 
 
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=8)
+def get_url(url):
+    r = requests.get(url)
+
+    if r.status_code != 200:
+        LOG.warning(f"request failed with status code {r.status_code} - retrying")
+        raise requests.exceptions.RequestException
+
+    return r
+
+
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=8)
+def post_url(url, params, json):
+    r = requests.post(url, params=params, json=json)
+
+    if r.status_code != 200:
+        LOG.warning(f"request failed with status code {r.status_code} - retrying")
+        raise requests.exceptions.RequestException
+
+    return r
+
+
 class OpenAlexClient:
     @staticmethod
-    def get_researcher_obj(args: argparse.Namespace) -> dict:
+    def get_researcher_obj(_name: str, _alias: str, _institution: str) -> dict:
         # see: https://docs.openalex.org/api-entities/authors/author-object
         # to understand the cursor, see: https://docs.openalex.org/how-to-use-the-api/get-lists-of-entities/paging#cursor-paging
-
+        LOG.info(f"fetching researcher with name: {_name}")
         results = []
-        query = "https://api.openalex.org/authors?search=" + "%20".join(args.name).strip().lower() + "?&per-page=200&cursor="
+        query = "https://api.openalex.org/authors?search=" + "%20".join(_name).strip().lower() + "?&per-page=200&cursor="
         cursor = "*"
         while cursor is not None:
             response = requests.get(query + cursor).json()
             results.extend(response["results"])
             cursor = response["meta"]["next_cursor"]
-        assert len(results) > 0, f"no results found for {args.name}"
+
+        if len(results) <= 0:
+            LOG.info(f"no results found for {_name}")
+            return None
 
         filtered_results = [result for result in results if result["works_count"] > 0 and result["cited_by_count"] > 0]
-        assert len(filtered_results) > 0, f"no results with at least one work or citation"
+
+        if len(filtered_results) <= 0:
+            LOG.info(f"no results with at least one work or citation")
+            return None
+
         LOG.info(f"found {len(results)} matching researchers, {len(filtered_results)} of which have at least one work and citation")
 
         for result in filtered_results:
             display_name = result["display_name"]
-            institution = result["last_known_institution"]["display_name"]
+            institution = result["last_known_institution"]["display_name"] if result.get("last_known_institution") else None
             altnames = result["display_name_alternatives"]
 
             # name match
-            name_disp_score = fuzz.partial_token_sort_ratio(args.name, display_name)
-            alias_disp_score = 0 if args.alias is None else fuzz.partial_token_sort_ratio(args.alias, display_name)
+            name_disp_score = fuzz.partial_token_sort_ratio(_name, display_name)
+            alias_disp_score = 0 if _alias is None else fuzz.partial_token_sort_ratio(_alias, display_name)
 
             # hint: institution
-            inst_score = 0 if args.institution is None else fuzz.partial_token_sort_ratio(args.institution, institution)
+            inst_score = 0 if (_institution is None) or (institution is None) else fuzz.partial_token_sort_ratio(_institution, institution)
 
             # hint: alternative names
-            avg_name_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.name, altname) for altname in altnames]) / len(altnames)
-            avg_alias_altnames_score = 0 if args.alias is None else sum([fuzz.partial_token_sort_ratio(args.alias, altname) for altname in altnames]) / len(altnames)
+            avg_name_altnames_score = 0 if (_alias is None) or (altnames is None) else sum([fuzz.partial_token_sort_ratio(_name, altname) for altname in altnames]) / len(altnames)
+            avg_alias_altnames_score = 0 if (_alias is None) or (altnames is None) else sum([fuzz.partial_token_sort_ratio(_alias, altname) for altname in altnames]) / len(altnames)
 
             total_score = name_disp_score + alias_disp_score + inst_score + avg_name_altnames_score + avg_alias_altnames_score
             result["total_score"] = total_score
@@ -153,94 +186,6 @@ class OpenAlexClient:
         return output
 
 
-class OpenAlexPdfCrawler:
-    CACHE_DIR_NAME = "pdfs"
-    COUNTER = 0
-    TOTAL = 0
-
-    @staticmethod
-    def __background(f):
-        def wrapped(*args, **kwargs):
-            return asyncio.get_event_loop().run_in_executor(None, f, *args, **kwargs)
-
-        return wrapped
-
-    @staticmethod
-    @__background
-    def __download(url: str, filepath: str):
-        try:
-            response = requests.get(url, timeout=10)  # timeout in seconds
-            with open(filepath, "wb") as f:
-                f.write(response.content)
-            OpenAlexPdfCrawler.COUNTER += 1  # will lead to race condition, but that's okay
-            LOG.info(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - downloaded")
-        except requests.exceptions.Timeout:
-            LOG.critical(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - timed out")
-
-    @staticmethod
-    def download_pdfs(cache_key, citing_paper_objs: list):
-        urls = []
-        for citing_paper in citing_paper_objs:
-            urls.append([r["open_access"]["oa_url"] for r in citing_paper["results"] if r["open_access"]["oa_url"] is not None])
-        urls = [url for sublist in urls for url in sublist]
-
-        dir_exists, dir_path = is_cached_get_path(cache_key, OpenAlexPdfCrawler.CACHE_DIR_NAME)
-        if not dir_exists:
-            os.mkdir(dir_path)
-            LOG.info(f"created directory for pdfs in cache")
-
-        LOG.info(f"concurrently downloading {len(urls)} pdfs")
-        OpenAlexPdfCrawler.TOTAL = len(urls)
-
-        for url in urls:
-            filename_len = 10
-            filename = hashlib.sha256(url.encode()).hexdigest().lower()[0:filename_len] + ".pdf"
-            filepath = os.path.join(dir_path, filename)
-
-            is_cached = os.path.isfile(filepath)
-            if is_cached:
-                OpenAlexPdfCrawler.COUNTER += 0
-                LOG.info(f"\tprogress: {OpenAlexPdfCrawler.COUNTER}/{OpenAlexPdfCrawler.TOTAL} - found in cache")
-                continue
-
-            OpenAlexPdfCrawler.__download(url, filepath)
-
-    @staticmethod
-    def convert_pdf_to_txt(cache_key):
-        TXT_CACHE_DIR_NAME = "txts"
-
-        pdf_dir_exists, pdf_dir_path = is_cached_get_path(cache_key, OpenAlexPdfCrawler.CACHE_DIR_NAME)
-        assert pdf_dir_exists, f"no pdfs found in cache"
-
-        txt_dir_exists, txt_dir_path = is_cached_get_path(cache_key, TXT_CACHE_DIR_NAME)
-        if not txt_dir_exists:
-            os.mkdir(txt_dir_path)
-            LOG.info(f"created directory for txts in cache")
-
-        pdf_paths = [os.path.join(pdf_dir_path, filename) for filename in os.listdir(pdf_dir_path)]
-        for i, pdf in enumerate(pdf_paths):
-            LOG.info(f"\tprogress: {i}/{len(pdf_paths)}")
-
-            txt_name = os.path.basename(pdf).replace(".pdf", ".txt")
-            txt_path = os.path.join(txt_dir_path, txt_name)
-
-            is_cached = os.path.isfile(txt_path)
-            if is_cached:
-                LOG.info(f"\tprogress: {i}/{len(pdf_paths)} - found in cache")
-                continue
-
-            try:
-                reader = PdfReader(pdf)
-                for i in range(len(reader.pages)):
-                    text = reader.pages[i].extract_text()
-                    if text is None:
-                        continue
-                    with open(txt_path, "a") as f:
-                        f.write(text)
-            except Exception as e:
-                LOG.critical(f"\tprogress: {i}/{len(pdf_paths)} - error: {e}")
-
-
 class SemanticScholarClient:
     @staticmethod
     def match(args: argparse.Namespace, oa_researcher_obj: dict) -> dict:
@@ -260,10 +205,16 @@ class SemanticScholarClient:
         )
         response = requests.get(query).json()
         total = response["total"]
-        assert total > 0, f"no results found for {args.name}"
+        if total <= 0:
+            LOG.info(f"no results found for {args.name}")
+            return None
+
         data = response["data"]
         data = [elem for elem in data if elem["paperCount"] > 0 and elem["citationCount"] > 0]
-        assert len(data) > 0, f"no results with at least one work or citation"
+
+        if len(data) <= 0:
+            LOG.info(f"no results with at least one work or citation")
+            return None
         LOG.info(f"found {total} matching researchers on semantic-scholar, {len(data)} of which have at least one publication")
 
         for elem in data:
@@ -300,15 +251,9 @@ class SemanticScholarClient:
         return best_match
 
     @staticmethod
-    def get_citations(cache_key: str, ss_researcher_obj: dict) -> list:
-        filename = "ss-citations.json"
-        is_cached, filepath = is_cached_get_path(cache_key, filename)
-        if is_cached:
-            LOG.info(f"found citing papers in cache: '{filepath}'")
-            return json.load(open(filepath, "r"))
-
+    def get_papers_of_researcher(db, ss_researcher_obj: dict) -> list:
         id = ss_researcher_obj["authorId"]
-        LOG.info(f"fetching citations")
+        LOG.info(f"fetching papers")
         query = f"https://api.semanticscholar.org/graph/v1/author/{id}/papers?limit=1000"
 
         # fetch papers
@@ -321,43 +266,89 @@ class SemanticScholarClient:
         assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
         LOG.info(f"\tfound {len(papers)} papers")
 
+        # get details of papers
+        # send requests in batches of 400
+        paper_details = []
+        for i in range(0, len(papers), 400):
+            paper_ids = [paper["paperId"] for paper in papers[i : i + 400]]
+            r = post_url("https://api.semanticscholar.org/graph/v1/paper/batch", params={"fields": "title,year,venue,externalIds,citationCount,authors"}, json={"ids": paper_ids}).json()
+            paper_details.extend(r)
+
+        # get the author data
+        authors = []
+        for paper in paper_details:
+            authors.extend(paper["authors"])
+        author_ids_set = set([author["authorId"] for author in authors if author["authorId"] is not None])
+        author_ids = list(author_ids_set)
+        author_details = post_url("https://api.semanticscholar.org/graph/v1/author/batch", params={"fields": "name,hIndex,affiliations"}, json={"ids": author_ids}).json()
+
+        # add authors to db
+        for author in author_details:
+            # check if author already exists
+            db_author = db.session.query(Researcher).filter(Researcher.semantic_scholar_id == author["authorId"]).first()
+            if db_author is not None:
+                continue
+
+            db.add_researcher(author)
+
+        # add papers to db
+        for paper in paper_details:
+            db_paper = db.add_paper(
+                paper["paperId"],
+                paper["title"],
+                paper["year"],
+                paper["venue"],
+                paper["citationCount"],
+                paper["externalIds"]["DOI"] if paper.get("externalIds") and paper["externalIds"].get("DOI") else None,
+            )
+            for i, author in enumerate(paper["authors"]):
+                if author["authorId"] is None:
+                    continue
+                db_researcher = db.session.query(Researcher).filter(Researcher.semantic_scholar_id == author["authorId"]).first()
+                if db_researcher is None:
+                    # query the author
+                    query = f"https://api.semanticscholar.org/graph/v1/author/{author['authorId']}?fields=name,hIndex,affiliations"
+                    ss_researcher_obj = get_url(query).json()
+
+                    db_researcher = db.add_researcher(ss_researcher_obj)
+
+                db.add_authorship(db_researcher, db_paper, i)
+
+        return papers
+
+    @staticmethod
+    def get_citations(db, ss_researcher_obj: dict) -> list:
+        # fetch papers
+        papers = db.session.query(Paper).filter(Paper.citations_added == False).all()
+
+        LOG.info(f"fetching citations")
         # fetch citations of papers
         # see: https://api.semanticscholar.org/api-docs/#tag/Paper-Data/operation/get_graph_get_paper_citations
-        citations = []
         c = 0
         for paper in papers:
-            id = paper["paperId"]
-            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents"
+            citations = []
+            id = paper.semantic_scholar_id
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents,paperId"
 
             # paginate through citations (also avoid rate limit)
             offset = None
             while (offset is None) or (offset != 0):
-                MAX_RETRIES = 10
-                TIMEOUT = 60 * 1
-
-                def request(url: str, retries: int = 0) -> dict:
-                    if retries > MAX_RETRIES:
-                        raise Exception("too many retries")
-
-                    r = requests.get(url)
-                    if r.status_code != 200:
-                        LOG.warning(f"request failed with status code {r.status_code} - retrying in {TIMEOUT} seconds")
-                        time.sleep(TIMEOUT)
-                        return request(url, retries + 1)
-                    return r.json()
-
                 ppquery = paper_query + ("" if offset is None else f"&offset={offset}")
-                response = request(ppquery)
+                response = get_url(ppquery).json()
                 assert response
                 citations.extend(response["data"])
                 offset = response["offset"]
                 LOG.info(f"\tprogress: {c}/{len(papers)}")
                 c += 1
 
-        # cache results
-        json.dump(citations, open(filepath, "w"))
-        LOG.info(f"{len(citations)} citations cached at '{filepath}'")
-        return citations
+            # add citations to db
+            for citation in citations:
+                if citation.get("citingPaper") is None or citation["citingPaper"].get("paperId") is None:
+                    continue
+                for i, context in enumerate(citation["contexts"]):
+                    db_citation = db.add_citation(citation["citingPaper"]["paperId"], id, context, citation["intents"][0] if len(citation["intents"]) > 0 else None)
+
+            db.update_paper_citations_added(paper)
 
 
 class OllamaSentimentClassifier:
@@ -366,26 +357,109 @@ class OllamaSentimentClassifier:
         pass
 
 
+class DatabaseClient:
+    def __init__(self):
+        self.session = Session(engine)
+
+    def add_researcher(self, ss_researcher_obj: dict) -> Researcher:
+        researcher = Researcher(
+            semantic_scholar_id=ss_researcher_obj["authorId"],
+            name=ss_researcher_obj["name"],
+            h_index=ss_researcher_obj["hIndex"],
+            institution=ss_researcher_obj["affiliations"][0] if ss_researcher_obj.get("affiliations") is not None and len(ss_researcher_obj["affiliations"]) > 0 else None,
+        )
+        try:
+            self.session.add(researcher)
+            self.session.commit()
+        except Exception as e:
+            # duplicate entry
+            print(e)
+            LOG.info(f"researcher already exists")
+            self.session.rollback()
+            researcher = self.session.query(Researcher).filter(Researcher.semantic_scholar_id == ss_researcher_obj["authorId"]).first()
+        return researcher
+
+    def add_paper(self, ss_paper_id, title, year, venue, citation_count, doi) -> Paper:
+        paper = Paper(
+            semantic_scholar_id=ss_paper_id,
+            title=title,
+            year=year,
+            venue=venue,
+            citation_count=citation_count,
+            doi=doi,
+            citations_added=False,
+            references_added=False,
+        )
+        try:
+            self.session.add(paper)
+            self.session.commit()
+        except Exception as e:
+            # duplicate entry
+            LOG.info(f"paper already exists")
+            self.session.rollback()
+            paper = self.session.query(Paper).filter(Paper.semantic_scholar_id == ss_paper_id).first()
+            if paper is None:
+                print(e)
+        return paper
+
+    def add_authorship(self, researcher: Researcher, paper: Paper, author_order: int) -> Authorship:
+        authorship = self.session.query(Authorship).filter(Authorship.researcher_id == researcher.id, Authorship.paper_id == paper.id).first()
+        if authorship is not None:
+            LOG.info(f"authorship already exists")
+            return authorship
+        authorship = Authorship(researcher_id=researcher.id, paper_id=paper.id, author_order=author_order)
+        self.session.add(authorship)
+        self.session.commit()
+        return authorship
+
+    def add_citation(self, citing_paper_ss_id: str, cited_paper_ss_id: str, context: str, intent: str) -> Citation:
+        citation = self.session.query(Citation).filter(Citation.citing_paper_id == citing_paper_ss_id, Citation.cited_paper_id == cited_paper_ss_id, Citation.context == context).first()
+        if citation is not None:
+            LOG.info(f"citation already exists")
+            return citation
+        citation = Citation(citing_paper_id=citing_paper_ss_id, cited_paper_id=cited_paper_ss_id, context=context, intent=intent, llm_purpose=None, sentiment=None)
+        self.session.add(citation)
+        self.session.commit()
+        return citation
+
+    def update_citation(self, citation: Citation, llm_purpose: str, sentiment: str) -> Citation:
+        citation.llm_purpose = llm_purpose
+        citation.sentiment = sentiment
+        self.session.commit()
+        return citation
+
+    def update_paper_citations_added(self, paper: Paper) -> Paper:
+        paper.citations_added = True
+        self.session.commit()
+        return paper
+
+    def update_paper_references_added(self, paper: Paper) -> Paper:
+        paper.references_added = True
+        self.session.commit()
+        return paper
+
+    def session_close(self):
+        self.session.close()
+
+
 def main():
     args = get_args()
     LOG.info(f"args: {args}")
+    db = DatabaseClient()
 
     # find researcher in openalex
-    oa_researcher_obj = OpenAlexClient.get_researcher_obj(args)
-    cache_key = hashlib.sha256(oa_researcher_obj["id"].encode()).hexdigest().lower()[0:24]
-
-    # optional: download all citing papers
-    if args.download_pdfs:
-        paper_urls = OpenAlexClient.get_paper_urls(cache_key, oa_researcher_obj)
-        citing_paper_objs = OpenAlexClient.get_citing_paper_objs(cache_key, paper_urls)
-        OpenAlexPdfCrawler.download_pdfs(cache_key, citing_paper_objs)
-        OpenAlexPdfCrawler.convert_pdf_to_txt(cache_key)
-
-    # match with researcher in semantic scholar
+    oa_researcher_obj = OpenAlexClient.get_researcher_obj(args.name, args.alias, args.institution)
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
+    db_researcher = db.add_researcher(ss_researcher_obj)
+    # print(json.dumps(oa_researcher_obj))
+    cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
 
-    # find citations on semantic scholar
-    citations = SemanticScholarClient.get_citations(cache_key, ss_researcher_obj)
+    # # match with researcher in semantic scholar
+
+    # print(json.dumps(ss_researcher_obj))
+    # # find citations on semantic scholar
+    SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
+    SemanticScholarClient.get_citations(db, ss_researcher_obj)
 
 
 if __name__ == "__main__":
