@@ -50,9 +50,20 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
     return is_cached, filepath
 
 
-@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=6)
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=8)
 def get_url(url):
     r = requests.get(url)
+
+    if r.status_code != 200:
+        LOG.warning(f"request failed with status code {r.status_code} - retrying")
+        raise requests.exceptions.RequestException
+
+    return r
+
+
+@backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=8)
+def post_url(url, params, json):
+    r = requests.post(url, params=params, json=json)
 
     if r.status_code != 200:
         LOG.warning(f"request failed with status code {r.status_code} - retrying")
@@ -260,11 +271,25 @@ class SemanticScholarClient:
         paper_details = []
         for i in range(0, len(papers), 400):
             paper_ids = [paper["paperId"] for paper in papers[i : i + 400]]
-            r = requests.post("https://api.semanticscholar.org/graph/v1/paper/batch", params={"fields": "title,year,venue,externalIds,citationCount,authors"}, json={"ids": paper_ids}).json()
+            r = post_url("https://api.semanticscholar.org/graph/v1/paper/batch", params={"fields": "title,year,venue,externalIds,citationCount,authors"}, json={"ids": paper_ids}).json()
             paper_details.extend(r)
 
-        # for testing
-        json.dump(paper_details, open("test.json", "w"))
+        # get the author data
+        authors = []
+        for paper in paper_details:
+            authors.extend(paper["authors"])
+        author_ids_set = set([author["authorId"] for author in authors if author["authorId"] is not None])
+        author_ids = list(author_ids_set)
+        author_details = post_url("https://api.semanticscholar.org/graph/v1/author/batch", params={"fields": "name,hIndex,affiliations"}, json={"ids": author_ids}).json()
+
+        # add authors to db
+        for author in author_details:
+            # check if author already exists
+            db_author = db.session.query(Researcher).filter(Researcher.semantic_scholar_id == author["authorId"]).first()
+            if db_author is not None:
+                continue
+
+            db.add_researcher(author)
 
         # add papers to db
         for paper in paper_details:
@@ -285,69 +310,45 @@ class SemanticScholarClient:
                     query = f"https://api.semanticscholar.org/graph/v1/author/{author['authorId']}?fields=name,hIndex,affiliations"
                     ss_researcher_obj = get_url(query).json()
 
-                    # try:
-                    #     oa_researcher_obj = OpenAlexClient.get_researcher_obj(_name=[ss_researcher_obj["name"]], _alias=None, _institution=None)
-                    # except Exception as e:
-                    #     print(author)
-                    #     print(ss_researcher_obj)
-                    #     raise e
-
-                    # db_researcher = db.add_researcher(oa_researcher_obj, ss_researcher_obj)
-                    db_researcher = db.add_researcher_ss(ss_researcher_obj)
+                    db_researcher = db.add_researcher(ss_researcher_obj)
 
                 db.add_authorship(db_researcher, db_paper, i)
 
         return papers
 
     @staticmethod
-    def get_citations(cache_key: str, ss_researcher_obj: dict) -> list:
-        filename = "ss-citations.json"
-        is_cached, filepath = is_cached_get_path(cache_key, filename)
-        if is_cached:
-            LOG.info(f"found citing papers in cache: '{filepath}'")
-            return json.load(open(filepath, "r"))
-
-        id = ss_researcher_obj["authorId"]
-        papers = SemanticScholarClient.get_papers_of_researcher(cache_key, ss_researcher_obj)
+    def get_citations(db, ss_researcher_obj: dict) -> list:
+        # fetch papers
+        papers = db.session.query(Paper).filter(Paper.citations_added == False).all()
 
         LOG.info(f"fetching citations")
         # fetch citations of papers
         # see: https://api.semanticscholar.org/api-docs/#tag/Paper-Data/operation/get_graph_get_paper_citations
-        citations = []
         c = 0
         for paper in papers:
-            id = paper["paperId"]
-            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents"
+            citations = []
+            id = paper.semantic_scholar_id
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents,paperId"
 
             # paginate through citations (also avoid rate limit)
             offset = None
             while (offset is None) or (offset != 0):
-                MAX_RETRIES = 10
-                TIMEOUT = 60 * 1
-
-                def request(url: str, retries: int = 0) -> dict:
-                    if retries > MAX_RETRIES:
-                        raise Exception("too many retries")
-
-                    r = requests.get(url)
-                    if r.status_code != 200:
-                        LOG.warning(f"request failed with status code {r.status_code} - retrying in {TIMEOUT} seconds")
-                        time.sleep(TIMEOUT)
-                        return request(url, retries + 1)
-                    return r.json()
-
                 ppquery = paper_query + ("" if offset is None else f"&offset={offset}")
-                response = request(ppquery)
+                response = get_url(ppquery).json()
                 assert response
                 citations.extend(response["data"])
                 offset = response["offset"]
                 LOG.info(f"\tprogress: {c}/{len(papers)}")
                 c += 1
 
-        # cache results
-        json.dump(citations, open(filepath, "w"))
-        LOG.info(f"{len(citations)} citations cached at '{filepath}'")
-        return citations
+            # add citations to db
+            for citation in citations:
+                if citation.get("citingPaper") is None or citation["citingPaper"].get("paperId") is None:
+                    continue
+                for i, context in enumerate(citation["contexts"]):
+                    db_citation = db.add_citation(citation["citingPaper"]["paperId"], id, context, citation["intents"][0] if len(citation["intents"]) > 0 else None)
+
+            db.update_paper_citations_added(paper)
 
 
 class OllamaSentimentClassifier:
@@ -360,25 +361,7 @@ class DatabaseClient:
     def __init__(self):
         self.session = Session(engine)
 
-    def add_researcher(self, oa_researcher_obj: dict, ss_researcher_obj: dict) -> Researcher:
-        researcher = Researcher(
-            semantic_scholar_id=ss_researcher_obj["authorId"],
-            name=ss_researcher_obj["name"],
-            h_index=ss_researcher_obj["hIndex"],
-            institution=oa_researcher_obj["last_known_institution"]["display_name"] if oa_researcher_obj is not None and oa_researcher_obj.get("last_known_institution") else None,
-        )
-        try:
-            self.session.add(researcher)
-            self.session.commit()
-        except Exception as e:
-            # duplicate entry
-            print(e)
-            LOG.info(f"researcher already exists")
-            self.session.rollback()
-            researcher = self.session.query(Researcher).filter(Researcher.semantic_scholar_id == ss_researcher_obj["authorId"]).first()
-        return researcher
-
-    def add_researcher_ss(self, ss_researcher_obj: dict) -> Researcher:
+    def add_researcher(self, ss_researcher_obj: dict) -> Researcher:
         researcher = Researcher(
             semantic_scholar_id=ss_researcher_obj["authorId"],
             name=ss_researcher_obj["name"],
@@ -404,6 +387,8 @@ class DatabaseClient:
             venue=venue,
             citation_count=citation_count,
             doi=doi,
+            citations_added=False,
+            references_added=False,
         )
         try:
             self.session.add(paper)
@@ -427,12 +412,12 @@ class DatabaseClient:
         self.session.commit()
         return authorship
 
-    def add_citation(self, citing_paper: Paper, cited_paper: Paper, context: str, intent: str) -> Citation:
-        citation = self.session.query(Citation).filter(Citation.citing_paper_id == citing_paper.id, Citation.cited_paper_id == cited_paper.id).first()
+    def add_citation(self, citing_paper_ss_id: str, cited_paper_ss_id: str, context: str, intent: str) -> Citation:
+        citation = self.session.query(Citation).filter(Citation.citing_paper_id == citing_paper_ss_id, Citation.cited_paper_id == cited_paper_ss_id, Citation.context == context).first()
         if citation is not None:
             LOG.info(f"citation already exists")
             return citation
-        citation = Citation(citing_paper_id=citing_paper.id, cited_paper_id=cited_paper.id, context=context, intent=intent, llm_purpose=None, sentiment=None)
+        citation = Citation(citing_paper_id=citing_paper_ss_id, cited_paper_id=cited_paper_ss_id, context=context, intent=intent, llm_purpose=None, sentiment=None)
         self.session.add(citation)
         self.session.commit()
         return citation
@@ -442,6 +427,16 @@ class DatabaseClient:
         citation.sentiment = sentiment
         self.session.commit()
         return citation
+
+    def update_paper_citations_added(self, paper: Paper) -> Paper:
+        paper.citations_added = True
+        self.session.commit()
+        return paper
+
+    def update_paper_references_added(self, paper: Paper) -> Paper:
+        paper.references_added = True
+        self.session.commit()
+        return paper
 
     def session_close(self):
         self.session.close()
@@ -455,7 +450,7 @@ def main():
     # find researcher in openalex
     oa_researcher_obj = OpenAlexClient.get_researcher_obj(args.name, args.alias, args.institution)
     ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
-    db_researcher = db.add_researcher(oa_researcher_obj, ss_researcher_obj)
+    db_researcher = db.add_researcher(ss_researcher_obj)
     # print(json.dumps(oa_researcher_obj))
     cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
 
@@ -463,8 +458,8 @@ def main():
 
     # print(json.dumps(ss_researcher_obj))
     # # find citations on semantic scholar
-    papers = SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
-    # citations = SemanticScholarClient.get_citations(cache_key, ss_researcher_obj)
+    SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
+    SemanticScholarClient.get_citations(db, ss_researcher_obj)
 
 
 if __name__ == "__main__":
