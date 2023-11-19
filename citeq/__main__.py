@@ -12,7 +12,7 @@ from db import Researcher, Paper, Authorship, Citation, engine
 from sqlalchemy.orm import Session
 from types import SimpleNamespace
 import backoff
-
+from dotenv import load_dotenv
 
 from logger import LOG_SINGLETON as LOG, trace
 
@@ -51,8 +51,8 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
 
 
 @backoff.on_exception(backoff.expo, requests.exceptions.RequestException, max_tries=8)
-def get_url(url):
-    r = requests.get(url)
+def get_url(url, headers=None):
+    r = requests.get(url, headers=headers)
 
     if r.status_code != 200:
         LOG.warning(f"request failed with status code {r.status_code} - retrying")
@@ -317,9 +317,10 @@ class SemanticScholarClient:
         return papers
 
     @staticmethod
-    def get_citations(db, ss_researcher_obj: dict) -> list:
+    def get_citations(db, ss_researcher_obj: dict):
         # fetch papers
         papers = db.session.query(Paper).filter(Paper.citations_added == False).all()
+        headers = {"x-api-key": os.getenv("S2_API_KEY")} if os.getenv("S2_API_KEY") else None
 
         LOG.info(f"fetching citations")
         # fetch citations of papers
@@ -328,18 +329,16 @@ class SemanticScholarClient:
         for paper in papers:
             citations = []
             id = paper.semantic_scholar_id
-            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?limit=1000&fields=contexts,intents,paperId"
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/citations?fields=contexts,intents,paperId"
 
             # paginate through citations (also avoid rate limit)
-            offset = None
-            while (offset is None) or (offset != 0):
-                ppquery = paper_query + ("" if offset is None else f"&offset={offset}")
-                response = get_url(ppquery).json()
+            offset: None | int = 0
+            while offset is not None:
+                ppquery = paper_query + ("" if offset == 0 else f"&offset={offset}")
+                response = get_url(ppquery, headers=headers).json()
                 assert response
                 citations.extend(response["data"])
-                offset = response["offset"]
-                LOG.info(f"\tprogress: {c}/{len(papers)}")
-                c += 1
+                offset = response.get("next")
 
             # add citations to db
             for citation in citations:
@@ -349,6 +348,42 @@ class SemanticScholarClient:
                     db_citation = db.add_citation(citation["citingPaper"]["paperId"], id, context, citation["intents"][0] if len(citation["intents"]) > 0 else None)
 
             db.update_paper_citations_added(paper)
+            LOG.info(f"\tprogress: {c}/{len(papers)}")
+            c += 1
+
+    @staticmethod
+    def get_references(db, ss_researcher_obj: dict):
+        # fetch papers
+        papers = db.session.query(Paper).filter(Paper.references_added == False).all()
+        headers = {"x-api-key": os.getenv("S2_API_KEY")} if os.getenv("S2_API_KEY") else None
+
+        LOG.info(f"fetching references")
+        # fetch references of papers
+        c = 0
+        for paper in papers:
+            references = []
+            id = paper.semantic_scholar_id
+            paper_query = f"https://api.semanticscholar.org/graph/v1/paper/{id}/references?fields=contexts,intents,paperId"
+
+            # paginate through references (also avoid rate limit)
+            offset: None | int = 0
+            while offset is not None:
+                ppquery = paper_query + ("" if offset == 0 else f"&offset={offset}")
+                response = get_url(ppquery, headers=headers).json()
+                assert response
+                references.extend(response["data"])
+                offset = response.get("next")
+
+            # add references to db
+            for reference in references:
+                if reference.get("citedPaper") is None or reference["citedPaper"].get("paperId") is None:
+                    continue
+                for i, context in enumerate(reference["contexts"]):
+                    db_citation = db.add_citation(id, reference["citedPaper"]["paperId"], context, reference["intents"][0] if len(reference["intents"]) > 0 else None)
+
+            db.update_paper_references_added(paper)
+            LOG.info(f"\tprogress: {c}/{len(papers)}")
+            c += 1
 
 
 class OllamaSentimentClassifier:
@@ -443,6 +478,7 @@ class DatabaseClient:
 
 
 def main():
+    load_dotenv()
     args = get_args()
     LOG.info(f"args: {args}")
     db = DatabaseClient()
@@ -460,6 +496,7 @@ def main():
     # # find citations on semantic scholar
     SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
     SemanticScholarClient.get_citations(db, ss_researcher_obj)
+    SemanticScholarClient.get_references(db, ss_researcher_obj)
 
 
 if __name__ == "__main__":
