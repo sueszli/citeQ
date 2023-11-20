@@ -284,6 +284,8 @@ class SemanticScholarClient:
 
         # add authors to db
         for author in author_details:
+            if author["authorId"] is None:
+                continue
             # check if author already exists
             db_author = db.session.query(Researcher).filter(Researcher.semantic_scholar_id == author["authorId"]).first()
             if db_author is not None:
