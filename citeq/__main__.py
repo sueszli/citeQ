@@ -29,6 +29,8 @@ def get_args() -> argparse.Namespace:
     parser.add_argument("-s", "--ss-id", help="the semantic scholar id of the researcher", type=int, default=None)
     parser.add_argument("-f", "--file", help="file to read the profs from", type=str, default=None)
     parser.add_argument("-c", "--llm-classify", help="Classify the citatiations using llm", action=argparse.BooleanOptionalAction, type=bool, default=False)
+    parser.add_argument("--start", help="start value", type=int, default=None)
+    parser.add_argument("--end", help="end value", type=int, default=None)
     return parser.parse_args()
 
 
@@ -410,9 +412,11 @@ class SemanticScholarClient:
 
 class OllamaSentimentClassifier:
     @staticmethod
-    def classify(db, start=0, end=-1):
+    def classify(db, start=0, end=-1, to_csv=False):
         row_count = db.session.query(Citation.id).count()
         LOG.info(f"total citations: {row_count}")
+        LOG.info(f"start: {start}")
+        LOG.info(f"end: {end}")
 
         if end == -1:
             end = row_count
@@ -425,7 +429,11 @@ class OllamaSentimentClassifier:
                     if citation.llm_purpose is not None:
                         continue
                     llm_purpose = LlmClassifier.get_sentiment_class(citation.context)
-                    db.update_llm_purpose(citation, llm_purpose.name)
+                    if to_csv:
+                        with open("llm_purpose.csv", "a") as f:
+                            f.write(f"{citation.id},{llm_purpose.name}\n")
+                    else:
+                        db.update_llm_purpose(citation, llm_purpose.name)
                     tq.update(1)
 
 
@@ -526,7 +534,7 @@ def main():
     db = DatabaseClient()
 
     if args.llm_classify:
-        OllamaSentimentClassifier.classify(db)
+        OllamaSentimentClassifier.classify(db, start=args.start, end=args.end, to_csv=True)
         return
 
     if args.file is not None:
