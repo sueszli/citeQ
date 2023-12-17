@@ -422,7 +422,7 @@ class OllamaSentimentClassifier:
             end = row_count
         # fetch citations
         batch_size = 100
-        with tqdm(total=row_count) as tq:
+        with tqdm(total=(end - start)) as tq:
             for i in range(start, end, batch_size):
                 citations = db.session.query(Citation).offset(i).limit(batch_size).all()
                 for citation in citations:
