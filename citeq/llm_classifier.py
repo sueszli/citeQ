@@ -55,18 +55,18 @@ class LlmClassifier:
         assert response
 
         num_words = len(response.split())
-        if num_words != 1:
-            LOG.warning(f"expected 1 word in response, got {num_words}")
+        # if num_words != 1:
+        # LOG.warning(f"expected 1 word in response, got {num_words}")
 
-        fst_word = "".join([c for c in response.split()[0] if c.isalnum()]).strip().lower()
+        fst_word = response  # "".join([c for c in response.split()[0] if c.isalnum()]).strip().lower()
         match = [
-            (SentimentClass.CRITICIZING, fuzz.ratio(fst_word, "criticizing")),
-            (SentimentClass.COMPARISON, fuzz.ratio(fst_word, "comparison")),
-            (SentimentClass.USE, fuzz.ratio(fst_word, "use")),
-            (SentimentClass.SUBSTANTIATING, fuzz.ratio(fst_word, "substantiating")),
-            (SentimentClass.BASIS, fuzz.ratio(fst_word, "basis")),
-            (SentimentClass.NEUTRAL_OR_UNKNOWN, fuzz.ratio(fst_word, "neutral")),
+            (SentimentClass.CRITICIZING, fuzz.partial_ratio(fst_word, "criticizing")),
+            (SentimentClass.COMPARISON, fuzz.partial_ratio(fst_word, "comparison")),
+            (SentimentClass.USE, fuzz.partial_ratio(fst_word, "use")),
+            (SentimentClass.SUBSTANTIATING, fuzz.partial_ratio(fst_word, "substantiating")),
+            (SentimentClass.BASIS, fuzz.partial_ratio(fst_word, "basis")),
+            (SentimentClass.NEUTRAL_OR_UNKNOWN, fuzz.partial_ratio(fst_word, "neutral")),
         ]
         enum_match = max(match, key=lambda x: x[1])[0]
-        LOG.info(f"llm result: '{response}' → '{enum_match}'")
+        # LOG.info(f"llm result: '{response}' → '{enum_match}', citation: '{citation}'")
         return enum_match
