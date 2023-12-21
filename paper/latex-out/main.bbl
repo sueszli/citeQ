@@ -1,0 +1,83 @@
+%%% -*-BibTeX-*-
+%%% Do NOT edit. File created by BibTeX with style
+%%% ACM-Reference-Format-Journals [18-Jan-2012].
+
+\begin{thebibliography}{5}
+
+%%% ====================================================================
+%%% NOTE TO THE USER: you can override these defaults by providing
+%%% customized versions of any of these macros before the \bibliography
+%%% command.  Each of them MUST provide its own final punctuation,
+%%% except for \shownote{}, \showDOI{}, and \showURL{}.  The latter two
+%%% do not use final punctuation, in order to avoid confusing it with
+%%% the Web address.
+%%%
+%%% To suppress output of a particular field, define its macro to expand
+%%% to an empty string, or better, \unskip, like this:
+%%%
+%%% \newcommand{\showDOI}[1]{\unskip}   % LaTeX syntax
+%%%
+%%% \def \showDOI #1{\unskip}           % plain TeX syntax
+%%%
+%%% ====================================================================
+
+\ifx \showCODEN    \undefined \def \showCODEN     #1{\unskip}     \fi
+\ifx \showDOI      \undefined \def \showDOI       #1{#1}\fi
+\ifx \showISBNx    \undefined \def \showISBNx     #1{\unskip}     \fi
+\ifx \showISBNxiii \undefined \def \showISBNxiii  #1{\unskip}     \fi
+\ifx \showISSN     \undefined \def \showISSN      #1{\unskip}     \fi
+\ifx \showLCCN     \undefined \def \showLCCN      #1{\unskip}     \fi
+\ifx \shownote     \undefined \def \shownote      #1{#1}          \fi
+\ifx \showarticletitle \undefined \def \showarticletitle #1{#1}   \fi
+\ifx \showURL      \undefined \def \showURL       {\relax}        \fi
+% The following commands are used for tagged output and should be
+% invisible to TeX
+\providecommand\bibfield[2]{#2}
+\providecommand\bibinfo[2]{#2}
+\providecommand\natexlab[1]{#1}
+\providecommand\showeprint[2][]{arXiv:#2}
+
+\bibitem[Abu-Jbara et~al\mbox{.}(2013)]%
+        {abu2013purpose}
+\bibfield{author}{\bibinfo{person}{Amjad Abu-Jbara}, \bibinfo{person}{Jefferson Ezra}, {and} \bibinfo{person}{Dragomir Radev}.} \bibinfo{year}{2013}\natexlab{}.
+\newblock \showarticletitle{Purpose and polarity of citation: Towards nlp-based bibliometrics}. In \bibinfo{booktitle}{\emph{Proceedings of the 2013 conference of the North American chapter of the association for computational linguistics: Human language technologies}}. \bibinfo{pages}{596--606}.
+\newblock
+
+
+\bibitem[Brown et~al\mbox{.}(2020)]%
+        {brown2020language}
+\bibfield{author}{\bibinfo{person}{Tom~B. Brown}, \bibinfo{person}{Benjamin Mann}, \bibinfo{person}{Nick Ryder}, \bibinfo{person}{Melanie Subbiah}, \bibinfo{person}{Jared Kaplan}, \bibinfo{person}{Prafulla Dhariwal}, \bibinfo{person}{Arvind Neelakantan}, \bibinfo{person}{Pranav Shyam}, \bibinfo{person}{Girish Sastry}, \bibinfo{person}{Amanda Askell}, \bibinfo{person}{Sandhini Agarwal}, \bibinfo{person}{Ariel Herbert-Voss}, \bibinfo{person}{Gretchen Krueger}, \bibinfo{person}{Tom Henighan}, \bibinfo{person}{Rewon Child}, \bibinfo{person}{Aditya Ramesh}, \bibinfo{person}{Daniel~M. Ziegler}, \bibinfo{person}{Jeffrey Wu}, \bibinfo{person}{Clemens Winter}, \bibinfo{person}{Christopher Hesse}, \bibinfo{person}{Mark Chen}, \bibinfo{person}{Eric Sigler}, \bibinfo{person}{Mateusz Litwin}, \bibinfo{person}{Scott Gray}, \bibinfo{person}{Benjamin Chess}, \bibinfo{person}{Jack Clark}, \bibinfo{person}{Christopher Berner}, \bibinfo{person}{Sam McCandlish}, \bibinfo{person}{Alec Radford}, \bibinfo{person}{Ilya Sutskever}, {and} \bibinfo{person}{Dario Amodei}.} \bibinfo{year}{2020}\natexlab{}.
+\newblock \bibinfo{title}{Language Models are Few-Shot Learners}.
+\newblock
+\newblock
+\showeprint[arxiv]{2005.14165}~[cs.CL]
+
+
+\bibitem[Jiang et~al\mbox{.}(2023)]%
+        {jiang2023mistral}
+\bibfield{author}{\bibinfo{person}{Albert~Q. Jiang}, \bibinfo{person}{Alexandre Sablayrolles}, \bibinfo{person}{Arthur Mensch}, \bibinfo{person}{Chris Bamford}, \bibinfo{person}{Devendra~Singh Chaplot}, \bibinfo{person}{Diego de~las Casas}, \bibinfo{person}{Florian Bressand}, \bibinfo{person}{Gianna Lengyel}, \bibinfo{person}{Guillaume Lample}, \bibinfo{person}{Lucile Saulnier}, \bibinfo{person}{Lélio~Renard Lavaud}, \bibinfo{person}{Marie-Anne Lachaux}, \bibinfo{person}{Pierre Stock}, \bibinfo{person}{Teven~Le Scao}, \bibinfo{person}{Thibaut Lavril}, \bibinfo{person}{Thomas Wang}, \bibinfo{person}{Timothée Lacroix}, {and} \bibinfo{person}{William~El Sayed}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{title}{Mistral 7B}.
+\newblock
+\newblock
+\showeprint[arxiv]{2310.06825}~[cs.CL]
+
+
+\bibitem[OpenAI(2023)]%
+        {openai2023gpt4}
+\bibfield{author}{\bibinfo{person}{OpenAI}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{title}{GPT-4 Technical Report}.
+\newblock
+\newblock
+\showeprint[arxiv]{2303.08774}~[cs.CL]
+
+
+\bibitem[Touvron et~al\mbox{.}(2023)]%
+        {touvron2023llama}
+\bibfield{author}{\bibinfo{person}{Hugo Touvron}, \bibinfo{person}{Louis Martin}, \bibinfo{person}{Kevin Stone}, \bibinfo{person}{Peter Albert}, \bibinfo{person}{Amjad Almahairi}, \bibinfo{person}{Yasmine Babaei}, \bibinfo{person}{Nikolay Bashlykov}, \bibinfo{person}{Soumya Batra}, \bibinfo{person}{Prajjwal Bhargava}, \bibinfo{person}{Shruti Bhosale}, \bibinfo{person}{Dan Bikel}, \bibinfo{person}{Lukas Blecher}, \bibinfo{person}{Cristian~Canton Ferrer}, \bibinfo{person}{Moya Chen}, \bibinfo{person}{Guillem Cucurull}, \bibinfo{person}{David Esiobu}, \bibinfo{person}{Jude Fernandes}, \bibinfo{person}{Jeremy Fu}, \bibinfo{person}{Wenyin Fu}, \bibinfo{person}{Brian Fuller}, \bibinfo{person}{Cynthia Gao}, \bibinfo{person}{Vedanuj Goswami}, \bibinfo{person}{Naman Goyal}, \bibinfo{person}{Anthony Hartshorn}, \bibinfo{person}{Saghar Hosseini}, \bibinfo{person}{Rui Hou}, \bibinfo{person}{Hakan Inan}, \bibinfo{person}{Marcin Kardas}, \bibinfo{person}{Viktor Kerkez}, \bibinfo{person}{Madian Khabsa}, \bibinfo{person}{Isabel Kloumann}, \bibinfo{person}{Artem Korenev}, \bibinfo{person}{Punit~Singh Koura}, \bibinfo{person}{Marie-Anne Lachaux}, \bibinfo{person}{Thibaut Lavril}, \bibinfo{person}{Jenya Lee}, \bibinfo{person}{Diana Liskovich}, \bibinfo{person}{Yinghai Lu}, \bibinfo{person}{Yuning Mao}, \bibinfo{person}{Xavier Martinet}, \bibinfo{person}{Todor Mihaylov}, \bibinfo{person}{Pushkar Mishra}, \bibinfo{person}{Igor Molybog}, \bibinfo{person}{Yixin Nie}, \bibinfo{person}{Andrew Poulton}, \bibinfo{person}{Jeremy Reizenstein}, \bibinfo{person}{Rashi Rungta}, \bibinfo{person}{Kalyan Saladi}, \bibinfo{person}{Alan Schelten}, \bibinfo{person}{Ruan Silva}, \bibinfo{person}{Eric~Michael Smith}, \bibinfo{person}{Ranjan Subramanian}, \bibinfo{person}{Xiaoqing~Ellen Tan}, \bibinfo{person}{Binh Tang}, \bibinfo{person}{Ross Taylor}, \bibinfo{person}{Adina Williams}, \bibinfo{person}{Jian~Xiang Kuan}, \bibinfo{person}{Puxin Xu}, \bibinfo{person}{Zheng Yan}, \bibinfo{person}{Iliyan Zarov}, \bibinfo{person}{Yuchen Zhang}, \bibinfo{person}{Angela Fan}, \bibinfo{person}{Melanie Kambadur}, \bibinfo{person}{Sharan Narang}, \bibinfo{person}{Aurelien Rodriguez}, \bibinfo{person}{Robert Stojnic}, \bibinfo{person}{Sergey Edunov}, {and} \bibinfo{person}{Thomas Scialom}.} \bibinfo{year}{2023}\natexlab{}.
+\newblock \bibinfo{title}{Llama 2: Open Foundation and Fine-Tuned Chat Models}.
+\newblock
+\newblock
+\showeprint[arxiv]{2307.09288}~[cs.CL]
+
+
+\end{thebibliography}

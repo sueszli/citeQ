@@ -426,8 +426,8 @@ class OllamaSentimentClassifier:
             for i in range(start, end, batch_size):
                 citations = db.session.query(Citation).offset(i).limit(batch_size).all()
                 for citation in citations:
-                    if citation.llm_purpose is not None:
-                        continue
+                    # if citation.llm_purpose is not None:
+                    #     continue
                     llm_purpose = LlmClassifier.get_sentiment_class(citation.context)
                     if to_csv:
                         with open("llm_purpose.csv", "a") as f:
