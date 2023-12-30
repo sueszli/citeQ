@@ -13,41 +13,82 @@
 \gdef\HyperFirstAtBeginDocument#1{#1}
 \providecommand\HyField@AuxAddToFields[1]{}
 \providecommand\HyField@AuxAddToCoFields[2]{}
-\citation{touvron2023llama}
-\citation{abu2013purpose}
-\citation{brown2020language}
-\citation{openai2023gpt4}
-\citation{jiang2023mistral}
-\citation{touvron2023llama}
-\bibstyle{ACM-Reference-Format}
-\bibdata{sample-base}
-\bibcite{abu2013purpose}{{1}{2013}{{Abu-Jbara et~al\mbox  {.}}}{{}}}
+\citation{upstage2023solar}
+\citation{bird2008acl}
+\citation{athar2011sentiment,athar2012context,abu2013purpose,hernandez2015citation}
+\citation{yan2020relationship}
+\citation{yan2020authors}
+\citation{yan2020relationship}
+\citation{pubmed}
+\citation{yan2020authors}
 \@writefile{toc}{\contentsline {section}{Abstract}{1}{section*.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{1}{section.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{1}{section.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Data Collection}{1}{subsection.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Citation Purpose Classification}{1}{subsection.3.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Evaluation}{1}{subsubsection.3.2.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{1}{section.4}\protected@file@percent }
-\bibcite{brown2020language}{{2}{2020}{{Brown et~al\mbox  {.}}}{{}}}
-\bibcite{jiang2023mistral}{{3}{2023}{{Jiang et~al\mbox  {.}}}{{}}}
-\bibcite{openai2023gpt4}{{4}{2023}{{OpenAI}}{{}}}
-\bibcite{touvron2023llama}{{5}{2023}{{Touvron et~al\mbox  {.}}}{{}}}
+\citation{brown2020language}
+\citation{openai2023gpt4}
+\citation{jiang2023mistral}
+\citation{touvron2023llama}
+\citation{upstage2023solar}
+\citation{openai2023gpt4}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Evaluation results of the LLMs\relax }}{2}{table.caption.6}\protected@file@percent }
+\newlabel{table:evaluation}{{1}{2}{Evaluation results of the LLMs\relax }{table.caption.6}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces CiteQ database scheme\relax }}{2}{figure.caption.5}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{fig:citeq-scheme}{{1}{2}{CiteQ database scheme\relax }{figure.caption.5}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Precision of different LLMs in citation purpose classification\relax }}{2}{table.caption.6}\protected@file@percent }
-\newlabel{table:evaluation}{{1}{2}{Precision of different LLMs in citation purpose classification\relax }{table.caption.6}{}}
-\@writefile{toc}{\contentsline {section}{References}{2}{section*.9}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Prompt template used for citation purpose classification\relax }}{2}{figure.caption.7}\protected@file@percent }
-\newlabel{figure:prompt-template}{{2}{2}{Prompt template used for citation purpose classification\relax }{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Citation Sentiment Classification}{2}{subsection.3.2}\protected@file@percent }
+\@writefile{myc}{\contentsline {Figure}{\numberline {1}{\ignorespaces Distribution of citation purposes\relax }}{2}{Figure.1}\protected@file@percent }
+\newlabel{graph:distribution}{{1}{2}{Distribution of citation purposes\relax }{Figure.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Evaluation}{2}{subsubsection.3.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{2}{section.4}\protected@file@percent }
+\newlabel{graph:negative-karma}{{2a}{3}{Negative citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\newlabel{sub@graph:negative-karma}{{a}{3}{Negative citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\newlabel{graph:positive-karma}{{2b}{3}{Positive citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\newlabel{sub@graph:positive-karma}{{b}{3}{Positive citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\newlabel{graph:neutral-karma}{{2c}{3}{Neutral citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\newlabel{sub@graph:neutral-karma}{{c}{3}{Neutral citation percentage vs. H-index\relax }{figure.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Citation purpose percentages vs. H-index of researchers\relax }}{3}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:researcher-karma}{{2}{3}{Citation purpose percentages vs. H-index of researchers\relax }{figure.caption.7}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Citation sentiment percentage change throughout years\relax }}{3}{figure.caption.8}\protected@file@percent }
+\newlabel{graph:year-karma}{{3}{3}{Citation sentiment percentage change throughout years\relax }{figure.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}RQ1: Does Citation Karma Exists?}{3}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}RQ2: How does the citation sentiment percentages change throughout the career of a researcher?}{3}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}RQ3: How did the distribution of citation sentiments changed over time?}{3}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}RQ4: Does being in the same institution affect the citation sentiment distribution?}{3}{subsection.4.4}\protected@file@percent }
+\bibstyle{ACM-Reference-Format}
+\bibdata{sample-base}
+\bibcite{pubmed}{{1}{[n.\,d.]}{{pub}}{{}}}
+\bibcite{abu2013purpose}{{2}{2013}{{Abu-Jbara et~al\mbox  {.}}}{{}}}
+\bibcite{athar2011sentiment}{{3}{2011}{{Athar}}{{}}}
+\bibcite{athar2012context}{{4}{2012}{{Athar and Teufel}}{{}}}
+\bibcite{bird2008acl}{{5}{2008}{{Bird et~al\mbox  {.}}}{{}}}
+\bibcite{brown2020language}{{6}{2020}{{Brown et~al\mbox  {.}}}{{}}}
+\newlabel{graph:negative-career}{{4a}{4}{Negative citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\newlabel{sub@graph:negative-career}{{a}{4}{Negative citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\newlabel{graph:positive-career}{{4b}{4}{Positive citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\newlabel{sub@graph:positive-career}{{b}{4}{Positive citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\newlabel{graph:neutral-career}{{4c}{4}{Neutral citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\newlabel{sub@graph:neutral-career}{{c}{4}{Neutral citation percentage vs. H-index\relax }{figure.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Citation purpose percentages vs. researchers' number of papers\relax }}{4}{figure.caption.9}\protected@file@percent }
+\newlabel{fig:researcher-career}{{4}{4}{Citation purpose percentages vs. researchers' number of papers\relax }{figure.caption.9}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Citation purpose percentages within and outside of the institution\relax }}{4}{figure.caption.10}\protected@file@percent }
+\newlabel{graph:institute-karma}{{5}{4}{Citation purpose percentages within and outside of the institution\relax }{figure.caption.10}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Conclusion}{4}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{4}{section*.12}\protected@file@percent }
+\bibcite{hernandez2015citation}{{7}{2015}{{Hern{\'a}ndez-Alvarez and G{\'o}mez}}{{}}}
+\bibcite{jiang2023mistral}{{8}{2023}{{Jiang et~al\mbox  {.}}}{{}}}
+\bibcite{upstage2023solar}{{9}{2023}{{Kim et~al\mbox  {.}}}{{}}}
+\bibcite{openai2023gpt4}{{10}{2023}{{OpenAI}}{{}}}
+\bibcite{touvron2023llama}{{11}{2023}{{Touvron et~al\mbox  {.}}}{{}}}
+\bibcite{yan2020authors}{{12}{2020a}{{Yan et~al\mbox  {.}}}{{}}}
+\bibcite{yan2020relationship}{{13}{2020b}{{Yan et~al\mbox  {.}}}{{}}}
 \newlabel{tocindent-1}{0pt}
 \newlabel{tocindent0}{0pt}
-\newlabel{tocindent1}{4.185pt}
+\newlabel{tocindent1}{6.25499pt}
 \newlabel{tocindent2}{10.34999pt}
 \newlabel{tocindent3}{18.198pt}
-\@writefile{myc}{\contentsline {Figure}{\numberline {1}{\ignorespaces Distribution of Vulnerabilities \relax }}{3}{Figure.1}\protected@file@percent }
-\newlabel{graph:1}{{1}{3}{Distribution of Vulnerabilities \relax }{Figure.1}{}}
-\newlabel{TotPages}{{3}{3}{}{page.3}{}}
-\gdef \@abspage@last{3}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Classification Prompt Template}{5}{appendix.A}\protected@file@percent }
+\newlabel{appendix:classification-prompt}{{A}{5}{Classification Prompt Template}{appendix.A}{}}
+\newlabel{TotPages}{{5}{5}{}{page.5}{}}
+\gdef \@abspage@last{5}

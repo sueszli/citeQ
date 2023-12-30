@@ -171,9 +171,10 @@ class SentimentClass(Enum):
 
 class LlmClassifier:
     llm_mistral = Ollama(model="mistral")
-    llm_gpt = normalize_gpt(ChatOpenAI(model="gpt-3.5-turbo-1106"))
-    llm_gpt4 = normalize_gpt(ChatOpenAI(model="gpt-4"))
-    LLM = {"mistral": llm_mistral, "gpt3": llm_gpt, "gpt4": llm_gpt4}
+    llm_llama = Ollama(model="llama2")
+    llm_gpt = None  # normalize_gpt(ChatOpenAI(model="gpt-3.5-turbo-1106"))
+    llm_gpt4 = None  # normalize_gpt(ChatOpenAI(model="gpt-4"))
+    LLM = {"mistral": llm_mistral, "gpt3": llm_gpt, "gpt4": llm_gpt4, "llama": llm_llama}
     promt_printed = False
 
     @staticmethod

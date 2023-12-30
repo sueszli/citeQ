@@ -6,19 +6,18 @@ from tqdm import tqdm
 
 
 class SentimentClass(Enum):
-    CRITICIZING = 0
-    COMPARISON = 1
-    USE = 2
-    SUBSTANTIATING = 3
-    BASIS = 4
-    NEUTRAL_OR_UNKNOWN = 5
+    POSITIVE = 0
+    NEGATIVE = 1
+    NEUTRAL = 2
+    BAD_CONTEXT = 3
 
 
 # Create a session to use the tables
 session = Session(engine)
-
+path = "llm_purpose_649000_697609.csv"
+print(f"Reading {path}...")
 # Update the citation purposes with the llm output
-with open("llm_purpose_5.csv", "r") as f:
+with open(path, "r") as f:
     citations = f.readlines()
     for citation in tqdm(citations):
         c_id, annotation = citation.split(",")

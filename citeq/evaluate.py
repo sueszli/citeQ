@@ -25,11 +25,11 @@ with open("citations_annotated.csv", "r") as f:
 llm_annotations = []
 for citation in tqdm(annotated_citations):
     citation_context = session.query(Citation).filter(Citation.id == citation[0]).first().context
-    predicted_class = LlmClassifier.get_sentiment_class(citation_context, "mistral")
+    predicted_class = LlmClassifier.get_sentiment_class(citation_context, "llama")
     llm_annotations.append([citation[0], int(citation[1] if citation[1] != 3 else "2"), predicted_class.value])
 
 # write the llm annotations to a file
-with open("llm_annotations_mistral_inst.csv", "w") as f:
+with open("llm_annotations_llama.csv", "w") as f:
     for annotation in llm_annotations:
         f.write(f"{annotation[0]},{annotation[1]},{annotation[2]}\n")
 
