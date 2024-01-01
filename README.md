@@ -11,8 +11,6 @@ a8"     ""  88    88    a8P_____88  88          88
 🎓 citation sentiment classifier
 ```
 
-the store `citations_database.db` is a dataset of 9,438 papers’ metadata and 697,609 citations with their citation sentiments.
-
 _macos installation:_
 
 ```bash
@@ -39,3 +37,5 @@ docker exec -it ollama ollama pull llama2
 # run
 python3 citeq --help
 ```
+
+the usage resulted in `citations_database.db`. a dataset of 9,438 papers’ metadata and 697,609 citations with their citation sentiments.
