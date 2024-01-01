@@ -11,7 +11,7 @@ a8"     ""  88    88    a8P_____88  88          88
 🎓 citation sentiment classifier
 ```
 
-`citations_database.db` is a dataset of 9,438 papers’ metadata and 697,609 citations with their citation sentiments.
+the store `citations_database.db` is a dataset of 9,438 papers’ metadata and 697,609 citations with their citation sentiments.
 
 _macos installation:_
 
