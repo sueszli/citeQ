@@ -1,14 +1,14 @@
 # Fdb version 4
-["bibtex main"] 1712159747 "main.aux" "main.bbl" "main" 1712159979 0
+["bibtex main"] 1712159747 "main.aux" "main.bbl" "main" 1712160185 0
   "./sample-base.bib" 1712159762 15899 28adfc625744d5ec6d3d336bc7b2e424 ""
   "/usr/local/texlive/2023/texmf-dist/bibtex/bst/acmart/ACM-Reference-Format.bst" 1653856601 90333 ccee583820c555b8fd3c6d1b9f362b14 ""
-  "main.aux" 1712159979 7483 a3d344bd5427b8377d1decbd23b3b687 "pdflatex"
+  "main.aux" 1712160185 7483 a3d344bd5427b8377d1decbd23b3b687 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1712159977 "/Users/sueszli/dev/citeQ/paper/main.tex" "main.pdf" "main" 1712159979 0
-  "/Users/sueszli/dev/citeQ/paper/main.tex" 1712159976 39842 4c755a5ae87f3a86806bc835f349fe60 ""
+["pdflatex"] 1712160183 "/Users/sueszli/dev/citeQ/paper/main.tex" "main.pdf" "main" 1712160185 0
+  "/Users/sueszli/dev/citeQ/paper/main.tex" 1712160182 39831 5261b938583ce8438978c58504b35ea3 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_25tcsq.enc" 1490131464 2921 8ca0eb0831f9bc5da080d3697cfe67bf ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_76gpa5.enc" 1490131464 2933 9ad527ce78d7c5fa0a642dead095f172 ""
   "/usr/local/texlive/2023/texmf-dist/fonts/enc/dvips/libertine/lbtn_7grukw.enc" 1490131464 2934 a4a9158faed2e9e89c771b4e3b7fc12f ""
@@ -335,10 +335,10 @@
   "/usr/local/texlive/2023/texmf-var/web2c/pdftex/pdflatex.fmt" 1681133694 7883454 9d77900a8220d830a33578e3299efb26 ""
   "/usr/local/texlive/2023/texmf.cnf" 1678822455 577 1b2b1af17af2508fb20dd85783af4050 ""
   "citeq-scheme.png" 1712159481 189920 69e0a99a5219dab7832f2fb6eef452bc ""
-  "main.aux" 1712159979 7483 a3d344bd5427b8377d1decbd23b3b687 "pdflatex"
+  "main.aux" 1712160185 7483 a3d344bd5427b8377d1decbd23b3b687 "pdflatex"
   "main.bbl" 1712159747 11350 faedb50f029a83384b4590ec3ea1e6c5 "bibtex main"
-  "main.out" 1712159979 3183 027e1101c36fec44b216377913f403cd "pdflatex"
-  "main.tex" 1712159976 39842 4c755a5ae87f3a86806bc835f349fe60 ""
+  "main.out" 1712160185 3183 027e1101c36fec44b216377913f403cd "pdflatex"
+  "main.tex" 1712160182 39831 5261b938583ce8438978c58504b35ea3 ""
   (generated)
   "main.aux"
   "main.log"
