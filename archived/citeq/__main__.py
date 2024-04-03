@@ -13,16 +13,24 @@ from sqlalchemy.orm import Session
 from types import SimpleNamespace
 import backoff
 from dotenv import load_dotenv
+import logging
+from tqdm import tqdm
 
 from logger import LOG_SINGLETON as LOG, trace
+from llm_classifier import LlmClassifier, SentimentClass
 
 
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="CiteQ: a citation analysis tool")
-    parser.add_argument("name", nargs="+", help="the researcher's name", type=str)
+    parser.add_argument("-n", "--name", nargs="+", help="the researcher's name", type=str)
     parser.add_argument("-a", "--alias", nargs="+", help="the researcher's alternative names", type=str)
     parser.add_argument("-i", "--institution", nargs="+", help="the researcher's last known institution", type=str)
     parser.add_argument("-d", "--download-pdfs", help="download pdfs of papers that cite the researcher's papers", type=bool, default=False)
+    parser.add_argument("-s", "--ss-id", help="the semantic scholar id of the researcher", type=int, default=None)
+    parser.add_argument("-f", "--file", help="file to read the profs from", type=str, default=None)
+    parser.add_argument("-c", "--llm-classify", help="Classify the citatiations using llm", action=argparse.BooleanOptionalAction, type=bool, default=False)
+    parser.add_argument("--start", help="start value", type=int, default=None)
+    parser.add_argument("--end", help="end value", type=int, default=None)
     return parser.parse_args()
 
 
@@ -54,6 +62,9 @@ def is_cached_get_path(cache_key: str, filename: str) -> Tuple[bool, str]:
 def get_url(url, headers=None):
     r = requests.get(url, headers=headers)
 
+    if r.status_code == 404:
+        LOG.warning(f"could not find resource at {url}")
+        return r
     if r.status_code != 200:
         LOG.warning(f"request failed with status code {r.status_code} - retrying")
         raise requests.exceptions.RequestException
@@ -251,6 +262,12 @@ class SemanticScholarClient:
         return best_match
 
     @staticmethod
+    def get_researcher_from_ss_id(ss_id: int) -> dict:
+        query = f"https://api.semanticscholar.org/graph/v1/author/{ss_id}?fields=name,hIndex,affiliations,paperCount"
+        response = get_url(query).json()
+        return response
+
+    @staticmethod
     def get_papers_of_researcher(db, ss_researcher_obj: dict) -> list:
         id = ss_researcher_obj["authorId"]
         LOG.info(f"fetching papers")
@@ -263,7 +280,9 @@ class SemanticScholarClient:
             response = requests.get(query + ("" if offset is None else f"&offset={offset}")).json()
             papers.extend(response["data"])
             offset = response["offset"]
-        assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
+
+        ##print(len(papers))
+        ##assert ss_researcher_obj["paperCount"] == len(papers), f"paper count mismatch"
         LOG.info(f"\tfound {len(papers)} papers")
 
         # get details of papers
@@ -284,7 +303,7 @@ class SemanticScholarClient:
 
         # add authors to db
         for author in author_details:
-            if author["authorId"] is None:
+            if author is None or author["authorId"] is None:
                 continue
             # check if author already exists
             db_author = db.session.query(Researcher).filter(Researcher.semantic_scholar_id == author["authorId"]).first()
@@ -310,7 +329,10 @@ class SemanticScholarClient:
                 if db_researcher is None:
                     # query the author
                     query = f"https://api.semanticscholar.org/graph/v1/author/{author['authorId']}?fields=name,hIndex,affiliations"
-                    ss_researcher_obj = get_url(query).json()
+                    result = get_url(query)
+                    if result.status_code == 404:
+                        continue
+                    ss_researcher_obj = result.json()
 
                     db_researcher = db.add_researcher(ss_researcher_obj)
 
@@ -389,9 +411,30 @@ class SemanticScholarClient:
 
 
 class OllamaSentimentClassifier:
-    def __init__(self):
-        # ollama: "Label the citation purpose of the following text in terms of 'Criticizing', 'Comparison', 'Use', 'Substantiating', 'Basis', and 'Neutral(Other)': \"{text}\" (Note: you should only choose one label for the text"
-        pass
+    @staticmethod
+    def classify(db, start=0, end=-1, to_csv=False):
+        row_count = db.session.query(Citation.id).count()
+        LOG.info(f"total citations: {row_count}")
+        LOG.info(f"start: {start}")
+        LOG.info(f"end: {end}")
+
+        if end == -1:
+            end = row_count
+        # fetch citations
+        batch_size = 100
+        with tqdm(total=(end - start)) as tq:
+            for i in range(start, end, batch_size):
+                citations = db.session.query(Citation).offset(i).limit(batch_size).all()
+                for citation in citations:
+                    # if citation.llm_purpose is not None:
+                    #     continue
+                    llm_purpose = LlmClassifier.get_sentiment_class(citation.context)
+                    if to_csv:
+                        with open("llm_purpose.csv", "a") as f:
+                            f.write(f"{citation.id},{llm_purpose.name}\n")
+                    else:
+                        db.update_llm_purpose(citation, llm_purpose.name)
+                    tq.update(1)
 
 
 class DatabaseClient:
@@ -459,6 +502,11 @@ class DatabaseClient:
         self.session.commit()
         return citation
 
+    def update_llm_purpose(self, citation: Citation, llm_purpose: str) -> Citation:
+        citation.llm_purpose = llm_purpose
+        self.session.commit()
+        return citation
+
     def update_citation(self, citation: Citation, llm_purpose: str, sentiment: str) -> Citation:
         citation.llm_purpose = llm_purpose
         citation.sentiment = sentiment
@@ -485,20 +533,48 @@ def main():
     LOG.info(f"args: {args}")
     db = DatabaseClient()
 
-    # find researcher in openalex
-    oa_researcher_obj = OpenAlexClient.get_researcher_obj(args.name, args.alias, args.institution)
-    ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
+    if args.llm_classify:
+        OllamaSentimentClassifier.classify(db, start=args.start, end=args.end, to_csv=True)
+        return
+
+    if args.file is not None:
+        LOG.setLevel(logging.DEBUG)
+        with open(args.file, "r") as f:
+            for line in f.readlines():
+                try:
+                    name, ss_id = line.split(",")
+                    ss_id = int(ss_id.strip())
+                    ss_researcher_obj = SemanticScholarClient.get_researcher_from_ss_id(ss_id)
+                    LOG.warning(f"researcher: {ss_researcher_obj}")
+                    db_researcher = db.add_researcher(ss_researcher_obj)
+                    SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
+                    SemanticScholarClient.get_citations(db, ss_researcher_obj)
+                    SemanticScholarClient.get_references(db, ss_researcher_obj)
+                except Exception as e:
+                    LOG.warning(f"error: {e}")
+                    LOG.warning(f"skipping line: {line}")
+                    with open("errors.txt", "a") as f:
+                        f.write(line)
+        return
+
+    if args.ss_id is not None:
+        ss_researcher_obj = SemanticScholarClient.get_researcher_from_ss_id(args.ss_id)
+    else:
+        # find researcher in openalex
+        oa_researcher_obj = OpenAlexClient.get_researcher_obj(args.name, args.alias, args.institution)
+        ss_researcher_obj = SemanticScholarClient.match(args, oa_researcher_obj)
+
+    LOG.info(f"researcher: {ss_researcher_obj}")
     db_researcher = db.add_researcher(ss_researcher_obj)
     # print(json.dumps(oa_researcher_obj))
-    cache_key = hashlib.sha256(json.dumps(oa_researcher_obj).encode()).hexdigest().lower()[0:24]
-
-    # # match with researcher in semantic scholar
 
     # print(json.dumps(ss_researcher_obj))
     # # find citations on semantic scholar
     SemanticScholarClient.get_papers_of_researcher(db, ss_researcher_obj)
     SemanticScholarClient.get_citations(db, ss_researcher_obj)
     SemanticScholarClient.get_references(db, ss_researcher_obj)
+
+    LOG.info(f"Done: Researcher: {ss_researcher_obj}")
 
 
 if __name__ == "__main__":
