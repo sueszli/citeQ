@@ -109,22 +109,26 @@
 %% values in them; it is your responsibility as an author to replace
 %% the commands and values with those provided to you when you
 %% complete the rights form.
-\setcopyright{acmlicensed}
-\copyrightyear{2018}
-\acmYear{2018}
-\acmDOI{XXXXXXX.XXXXXXX}
+
+% \setcopyright{acmlicensed}
+% \copyrightyear{2018}
+% \acmYear{2018}
+% \acmDOI{XXXXXXX.XXXXXXX}
 
 %% These commands are for a PROCEEDINGS abstract or paper.
-\acmConference[Conference acronym 'XX]{Make sure to enter the correct
-  conference title from your rights confirmation emai}{June 03--05,
-  2018}{Woodstock, NY}
-%%
+
+% \acmConference[Conference acronym 'XX]{Make sure to enter the correct
+%   conference title from your rights confirmation emai}{June 03--05,
+%   2018}{Woodstock, NY}
+
+  %%
 %%  Uncomment \acmBooktitle if the title of the proceedings is different
 %%  from ``Proceedings of ...''!
 %%
 %%\acmBooktitle{Woodstock '18: ACM Symposium on Neural Gaze Detection,
 %%  June 03--05, 2018, Woodstock, NY}
-\acmISBN{978-1-4503-XXXX-X/18/06}
+
+% \acmISBN{978-1-4503-XXXX-X/18/06}
 
 
 %%
@@ -186,6 +190,17 @@
   \postcode{N2L 3G1}
 }
 
+\author{Yahya Jabary}
+\email{yahya.jabary@uwaterloo.ca}
+\affiliation{%
+  \institution{University of Waterloo}
+  \streetaddress{200 University Ave W}
+  \city{Waterloo}
+  \state{Ontario}
+  \country{Canada}
+  \postcode{N2L 3G1}
+}
+
 %%
 %% By default, the full list of authors will be used in the page
 %% headers. Often, this list is too long, and will overlap
@@ -237,9 +252,9 @@ While citation count and H-index is the most important metrics for measuring imp
 %% information and the body of the document, and typically spans the
 %% page.
 
-\received{20 February 2007}
-\received[revised]{12 March 2009}
-\received[accepted]{5 June 2009}
+% \received{20 February ???}
+% \received[revised]{12 March ???}
+% \received[accepted]{5 June ???}
 
 %%
 %% This command processes the author and affiliation and title
@@ -305,7 +320,7 @@ mistral & 0.48 & 0.27 & 0.36 & 0.50 & 0.43 & 0.87 & 0.75 & 0.13 & 0.50 & 0.44\\ 
 \section{Methodology}
 \subsection{Data Collection}
 We used the Semantic Scholar (SS) API to collect the publication and citation data of all current (as of this writing) members of the University of Waterloo Computer Science faculty members. SS provides an API endpoint to retrieve the context of a citation. We used this endpoint to retrieve the citation context of each citation
-made by a faculty member or to a faculty member. In total we collected data about 96 faculty members, 9,438 papers, and 697,609 citations. We formed an SQLite database, with the scheme shown in Figure \ref{fig:citeq-scheme}, to facilitate flexible querying of the data. This database is publicly available at \url{https://github.com/onurerenarpaci/citeQ.git}.
+made by a faculty member or to a faculty member. In total we collected data about 96 faculty members, 9,438 papers, and 697,609 citations. We formed an SQLite database, with the scheme shown in Figure \ref{fig:citeq-scheme}, to facilitate flexible querying of the data. This database is publicly available at \url{https://github.com/sueszli/citeQ.git}.
 
 \subsection{Citation Sentiment Classification}
 We experimented with a number of LLMs including chatGPT-3.5 \cite{brown2020language}, chatGPT-4.5 \cite{openai2023gpt4}, mistral and mistral 7x8B \cite{jiang2023mistral}, llama2 \cite{touvron2023llama} and Solar 10.7B \cite{upstage2023solar}. Among these, only promising results were obtained from Solar 10.7B and \cite{openai2023gpt4}. Since with the size of the dataset we had, we could not afford to run the classification on GPT-4.5, so we chose Solar 10.7B as our LLM.
